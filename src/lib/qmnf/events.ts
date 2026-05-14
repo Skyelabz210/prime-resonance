@@ -7,10 +7,15 @@
 //   - All longitudes BigInt arcseconds.
 //   - All dates Julian Day numbers (number).
 //   - Mean motion stored in arcsec/day (integer) — Saturn = 120"/day, etc.
+//
+// Note on the congruence: we need the *current* (natalJd) longitude of the
+// transit, not its natal-chart longitude, because mean motion advances from
+// where the transit actually is today. The caller passes `transitNowArcsec`.
 
 import { FULL_CIRCLE_ARCSEC } from "./constants";
 import { modBig } from "./crt";
 import { extGcd } from "./kelim";
+import { computeEphemeris } from "./ephemeris";
 
 /** Mean daily motion (arcsec/day) — integer constants. */
 export const MEAN_MOTION_ARCSEC_PER_DAY: Record<string, number> = {
@@ -65,13 +70,29 @@ export interface EventHit {
   aspect?: string;
   harmonic?: number;
   detail?: string;
+  /** True when the aspect carries the exclusive-11 shadow signature (biquintile family). */
+  shadow?: boolean;
 }
 
-// ─── Linear congruence solver wrapper ─────────────────────────────────────
+// ─── Solvers ──────────────────────────────────────────────────────────────
 
-/** Solve speed · t ≡ target (mod m) for non-negative t.
- *  Returns the principal solution t0 and the step. */
-function solveTime(speed: number, target: bigint, m: bigint): { t0: number; step: number } | null {
+/** Approximate solver in days for speed · t ≡ target (mod m), `speed` in
+ *  arcsec/day, `target` in arcsec, `m` = 1_296_000 (full circle). Returns the
+ *  first non-negative t and the cycle step. */
+function solveTimeApprox(speed: number, target: bigint, m: bigint): { t0: number; step: number } {
+  const mn = Number(m);
+  const targetN = ((Number(target) % mn) + mn) % mn;
+  const t0 = targetN / speed;
+  const step = mn / speed;
+  return { t0, step };
+}
+
+/** Exact integer-congruence solver — used for mod-11 / mod-13 lane work. */
+function solveTimeExact(
+  speed: number,
+  target: bigint,
+  m: bigint,
+): { t0: number; step: number } | null {
   const a = BigInt(speed);
   const { gcd, s } = extGcd(modBig(a, m), m);
   if (modBig(target, gcd) !== 0n) return null;
@@ -90,18 +111,30 @@ function* allHits(t0: number, step: number, maxDays: number): Generator<number> 
 
 // ─── Aspect prediction ────────────────────────────────────────────────────
 
-const ASPECT_ANGLES_ARCSEC: Array<{ harmonic: number; name: string; arcsec: bigint }> = [
+const ASPECT_ANGLES_ARCSEC: Array<{
+  harmonic: number;
+  name: string;
+  arcsec: bigint;
+  shadow?: boolean;
+}> = [
   { harmonic: 1, name: "Conjunction", arcsec: 0n },
   { harmonic: 2, name: "Opposition", arcsec: 648_000n },
   { harmonic: 3, name: "Trine", arcsec: 432_000n },
   { harmonic: 4, name: "Square", arcsec: 324_000n },
+  { harmonic: 5, name: "Quintile", arcsec: 259_200n },
   { harmonic: 6, name: "Sextile", arcsec: 216_000n },
-  { harmonic: 10, name: "Biquintile", arcsec: 518_400n }, // shadow aspect
+  { harmonic: 10, name: "Biquintile", arcsec: 518_400n, shadow: true }, // exclusive-11 carry
 ];
+
+function transitLongitudeAt(transit: string, jd: number): bigint {
+  const e = computeEphemeris(jd);
+  const p = e.planets.find((q) => q.name === transit);
+  return p ? p.longitudeArcsec : 0n;
+}
 
 /**
  * Predict exact dates when a transit planet forms an aspect to a natal point.
- * Uses linear congruence over mean motion — exact integer dates.
+ * Solves transit(jd0) + speed·t ≡ natal + aspect (mod 1_296_000) for t.
  */
 export function predictAspects(
   transit: string,
@@ -112,86 +145,111 @@ export function predictAspects(
 ): EventHit[] {
   const speed = MEAN_MOTION_ARCSEC_PER_DAY[transit];
   if (!speed) return [];
+  const transitNow = transitLongitudeAt(transit, natalJd);
   const maxFwd = Math.round(yearsForward * DAYS_PER_YEAR);
   const minBack = -Math.round(yearsBack * DAYS_PER_YEAR);
   const out: EventHit[] = [];
   for (const asp of ASPECT_ANGLES_ARCSEC) {
-    // We want longitude(t) = natalArcsec + aspect.angle → speed·t ≡ aspect (mod 1_296_000)
-    const sol = solveTime(speed, asp.arcsec, FULL_CIRCLE_ARCSEC);
-    if (!sol) continue;
-    for (const t of allHits(sol.t0, sol.step, maxFwd)) {
-      out.push({
-        kind: "aspect",
-        jd: natalJd + t,
-        age: t / DAYS_PER_YEAR,
-        planet: transit,
-        aspect: asp.name,
-        harmonic: asp.harmonic,
-      });
-    }
-    // Backward
-    let t = sol.t0 - sol.step;
-    while (t >= minBack) {
-      out.push({
-        kind: "aspect",
-        jd: natalJd + t,
-        age: t / DAYS_PER_YEAR,
-        planet: transit,
-        aspect: asp.name,
-        harmonic: asp.harmonic,
-      });
-      t -= sol.step;
+    // Conj + opp covers ±aspect_angle. Other aspects fire twice per cycle
+    // (once for +angle, once for −angle); we enumerate both targets.
+    const angles =
+      asp.arcsec === 0n || asp.arcsec * 2n === FULL_CIRCLE_ARCSEC
+        ? [asp.arcsec]
+        : [asp.arcsec, FULL_CIRCLE_ARCSEC - asp.arcsec];
+    for (const ang of angles) {
+      const target = modBig(natalArcsec + ang - transitNow, FULL_CIRCLE_ARCSEC);
+      const sol = solveTimeApprox(speed, target, FULL_CIRCLE_ARCSEC);
+      for (const t of allHits(sol.t0, sol.step, maxFwd)) {
+        if (t === 0) continue;
+        out.push({
+          kind: "aspect",
+          jd: natalJd + t,
+          age: t / DAYS_PER_YEAR,
+          planet: transit,
+          aspect: asp.name,
+          harmonic: asp.harmonic,
+          shadow: !!asp.shadow,
+        });
+      }
+      let t = sol.t0 - sol.step;
+      while (t >= minBack) {
+        out.push({
+          kind: "aspect",
+          jd: natalJd + t,
+          age: t / DAYS_PER_YEAR,
+          planet: transit,
+          aspect: asp.name,
+          harmonic: asp.harmonic,
+          shadow: !!asp.shadow,
+        });
+        t -= sol.step;
+      }
     }
   }
   return out.sort((a, b) => a.jd - b.jd);
 }
 
-/** Shadow activation: dates where Δ ≡ 0 (mod 11). */
+/** Shadow activation: dates where transit_r11 ≡ natal_r11 (mod 11).
+ *  Arcsec granularity = ~11 arcsec, so for fast movers this fires many times
+ *  per day. Use the optional `minDayGap` to rate-limit consecutive hits.
+ *  Not included in fullTimeline — biquintile aspects already carry the
+ *  shadow:true tag at the meaningful resolution. */
 export function predictShadowActivations(
   transit: string,
   natalArcsec: bigint,
   natalJd: number,
   years = 30,
+  minDayGap = 7,
 ): EventHit[] {
   const speed = MEAN_MOTION_ARCSEC_PER_DAY[transit];
   if (!speed) return [];
+  const transitNow = transitLongitudeAt(transit, natalJd);
   const maxDays = Math.round(years * DAYS_PER_YEAR);
-  // We want (natalArcsec + speed·t) mod 11 = natalArcsec mod 11 → speed·t ≡ 0 (mod 11)
-  const sol = solveTime(speed, 0n, 11n);
+  const target = modBig(natalArcsec - transitNow, 11n);
+  const sol = solveTimeExact(speed, target, 11n);
   if (!sol) return [];
   const out: EventHit[] = [];
+  let lastT = -Infinity;
   for (const t of allHits(Math.max(1, sol.t0), sol.step, maxDays)) {
+    if (t - lastT < minDayGap) continue;
+    lastT = t;
     out.push({
       kind: "shadow_activation",
       jd: natalJd + t,
       age: t / DAYS_PER_YEAR,
       planet: transit,
-      detail: "Δ ≡ 0 (mod 11) — lane-11 lock",
+      detail: "transit r₁₁ ≡ natal r₁₁ — lane-11 lock",
     });
   }
   return out;
 }
 
-/** Boundary activation: dates where Δ ≡ 0 (mod 13). */
+/** Boundary activation: dates where transit_r13 ≡ natal_r13 (mod 13). */
 export function predictBoundaryActivations(
   transit: string,
   natalArcsec: bigint,
   natalJd: number,
   years = 30,
+  minDayGap = 7,
 ): EventHit[] {
   const speed = MEAN_MOTION_ARCSEC_PER_DAY[transit];
   if (!speed) return [];
+  const transitNow = transitLongitudeAt(transit, natalJd);
   const maxDays = Math.round(years * DAYS_PER_YEAR);
-  const sol = solveTime(speed, 0n, 13n);
+  const target = modBig(natalArcsec - transitNow, 13n);
+  const sol = solveTimeExact(speed, target, 13n);
   if (!sol) return [];
   const out: EventHit[] = [];
+  let lastT = -Infinity;
   for (const t of allHits(Math.max(1, sol.t0), sol.step, maxDays)) {
+    if (t - lastT < minDayGap) continue;
+    lastT = t;
     out.push({
       kind: "boundary_activation",
       jd: natalJd + t,
       age: t / DAYS_PER_YEAR,
       planet: transit,
-      detail: "Δ ≡ 0 (mod 13) — lane-13 lock",
+      detail: "transit r₁₃ ≡ natal r₁₃ — lane-13 lock",
     });
   }
   return out;
@@ -249,6 +307,10 @@ export function fullTimeline(
 ): EventHit[] {
   const events: EventHit[] = [];
   // Slow movers only — Sun/Moon would flood the timeline.
+  // Shadow/boundary activations at arcsec granularity are too dense for a
+  // human-readable life timeline; they live in the substrate (chart panels)
+  // and the shadow:true flag on biquintile aspects gives the "shadow lit up"
+  // signal at the meaningful resolution.
   const slow = ["Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto"];
   for (const transit of slow) {
     for (const natal of natalPlanets) {
@@ -257,12 +319,6 @@ export function fullTimeline(
         a.natalPlanet = natal.name;
         events.push(a);
       }
-      events.push(
-        ...predictShadowActivations(transit, natal.longitudeArcsec, natalJd, yearsForward),
-      );
-      events.push(
-        ...predictBoundaryActivations(transit, natal.longitudeArcsec, natalJd, yearsForward),
-      );
     }
     events.push(...predictReturns(transit, natalJd, yearsForward));
   }

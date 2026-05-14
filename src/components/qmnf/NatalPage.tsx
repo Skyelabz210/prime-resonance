@@ -17,6 +17,7 @@ import { DresdenPanel } from "@/components/qmnf/DresdenPanel";
 import { AgentReading } from "@/components/qmnf/AgentReading";
 import { BirthForm } from "@/components/qmnf/BirthForm";
 import { VedicPanel } from "@/components/qmnf/VedicPanel";
+import { TraditionalPanel } from "@/components/qmnf/TraditionalPanel";
 import { useRigor } from "@/lib/qmnf/rigor";
 import { getChart, saveChart } from "@/lib/qmnf/store";
 
@@ -88,6 +89,10 @@ export function NatalPage() {
           <section className="grid lg:grid-cols-2 gap-6">
             <PatternsPanel chart={chart} />
             <DresdenPanel chart={chart} />
+          </section>
+
+          <section>
+            <TraditionalPanel chart={chart} />
           </section>
 
           <section>

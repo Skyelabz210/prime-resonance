@@ -24,6 +24,12 @@ import {
   type NakshatraInfo,
   type DashaPlanet,
 } from "./vedic";
+import { dignitiesForChart, type DignityResult } from "./dignities";
+import { computeLots, isDayChart, type Lot } from "./lots";
+import { meanLilithArcsec, meanLilithDeg } from "./lilith";
+import { lunarPhase, isMoonVoidOfCourse, type LunarPhase } from "./phase";
+import { classifyChartShape, type ShapeResult } from "./shape";
+import { CrtAddress } from "./crt";
 
 export interface BirthData {
   name: string;
@@ -66,6 +72,14 @@ export interface FullChart {
   patterns: Pattern[];
   maya: MayaPosition;
   vedic: VedicLayer;
+  // ── Traditional astrology additions ─────────────────────────────────────
+  dignities: DignityResult[];
+  lots: Lot[];
+  lilith: { longitudeArcsec: bigint; longitudeDeg: number; house: number };
+  lunarPhase: LunarPhase;
+  voidOfCourse: { voc: boolean; nextSignChangeDays: number; nextAspectDays: number | null };
+  shape: ShapeResult;
+  isDayChart: boolean;
 }
 
 function computeVedicLayer(jd: number, planets: PlanetPosition[]): VedicLayer {
@@ -99,18 +113,90 @@ export function computeFullChart(birth: BirthData): FullChart {
     0,
     birth.tzOffsetHours,
   );
-  const ephemeris = computeEphemeris(jd);
+  const ephemerisCore = computeEphemeris(jd);
+  // Add Black Moon Lilith into the chart's planet list (using addOn naming).
+  const lilithArcsec = meanLilithArcsec(jd);
+  const lilithPlanet: PlanetPosition = {
+    name: "Lilith",
+    longitudeArcsec: lilithArcsec,
+    retrograde: false,
+    address: CrtAddress.fromArcsec(lilithArcsec),
+  };
+  const ephemeris: EphemerisChart = {
+    jd,
+    planets: [...ephemerisCore.planets, lilithPlanet],
+  };
+
   const houses = computeHouses(jd, birth.latitude, birth.longitude, birth.houseSystem);
   const aspects = buildAspects(ephemeris.planets);
   const shadowNetwork = buildShadowNetwork(ephemeris.planets, SHADOW_LANE_NAMES);
   const boundaryNetwork = buildBoundaryNetwork(ephemeris.planets, BOUNDARY_LANE_NAMES);
   const faceOfZero = findFaceOfZero(shadowNetwork, boundaryNetwork);
   const invisibleShadowBonds = findClassicallyInvisible(shadowNetwork, aspects);
-  const patterns = findAspectPatterns(aspects);
+  const patterns = findAspectPatterns(aspects, ephemeris.planets);
   const planetHouses: Record<string, number> = {};
   for (const p of ephemeris.planets) {
     planetHouses[p.name] = houseOf(p.longitudeArcsec, houses.cuspsArcsec);
   }
+  const dignities = dignitiesForChart(ephemeris.planets);
+  const findPos = (name: string) =>
+    ephemeris.planets.find((p) => p.name === name)?.longitudeArcsec ?? 0n;
+  const sunArcsec = findPos("Sun");
+  const moonArcsec = findPos("Moon");
+  const ascArcsec = houses.cuspsArcsec[0];
+  const dayChart = isDayChart(sunArcsec, ascArcsec);
+  const lots = computeLots({
+    ascArcsec,
+    sunArcsec,
+    moonArcsec,
+    venusArcsec: findPos("Venus"),
+    marsArcsec: findPos("Mars"),
+    jupiterArcsec: findPos("Jupiter"),
+    saturnArcsec: findPos("Saturn"),
+    mercuryArcsec: findPos("Mercury"),
+    isDay: dayChart,
+  });
+  const phase = lunarPhase(sunArcsec, moonArcsec);
+  const moonForVoc = ephemeris.planets.find((p) => p.name === "Moon");
+  const voc = isMoonVoidOfCourse(
+    moonArcsec,
+    47400,
+    ephemeris.planets
+      .filter((p) => ["Sun", "Mercury", "Venus", "Mars", "Jupiter", "Saturn"].includes(p.name))
+      .map((p) => ({
+        name: p.name,
+        longitudeArcsec: p.longitudeArcsec,
+        speedArcsecPerDay:
+          p.name === "Sun"
+            ? 3548
+            : p.name === "Mercury"
+              ? 14400
+              : p.name === "Venus"
+                ? 5760
+                : p.name === "Mars"
+                  ? 1886
+                  : p.name === "Jupiter"
+                    ? 299
+                    : 120,
+      })),
+  );
+  void moonForVoc;
+  const shape = classifyChartShape(
+    ephemeris.planets.filter((p) =>
+      [
+        "Sun",
+        "Moon",
+        "Mercury",
+        "Venus",
+        "Mars",
+        "Jupiter",
+        "Saturn",
+        "Uranus",
+        "Neptune",
+        "Pluto",
+      ].includes(p.name),
+    ),
+  );
   return {
     birth,
     jd,
@@ -125,6 +211,17 @@ export function computeFullChart(birth: BirthData): FullChart {
     patterns,
     maya: computeMaya(jd),
     vedic: computeVedicLayer(jd, ephemeris.planets),
+    dignities,
+    lots,
+    lilith: {
+      longitudeArcsec: lilithArcsec,
+      longitudeDeg: meanLilithDeg(jd),
+      house: houseOf(lilithArcsec, houses.cuspsArcsec),
+    },
+    lunarPhase: phase,
+    voidOfCourse: voc,
+    shape,
+    isDayChart: dayChart,
   };
 }
 
@@ -140,8 +237,15 @@ export interface ReadingBundle {
     gearK: string;
     shadowLane: string;
     boundaryLane: string;
+    dignity?: string;
   }>;
-  conventionalAspects: Array<{ a: string; b: string; aspect: string; orb: string }>;
+  conventionalAspects: Array<{
+    a: string;
+    b: string;
+    aspect: string;
+    orb: string;
+    applying?: boolean;
+  }>;
   shadowBonds: Array<{ a: string; b: string; lane: string; classicallyInvisible: boolean }>;
   boundaryBonds: Array<{ a: string; b: string; lane: string }>;
   faceOfZero: Array<{ a: string; b: string; shadowLane: string; boundaryLane: string }>;
@@ -152,10 +256,19 @@ export interface ReadingBundle {
     moonNakshatra: { name: string; pada: number; ruler: string };
     sidereal: Array<{ planet: string; nakshatra: string; pada: number }>;
   };
+  traditional: {
+    dignities: Array<{ planet: string; sign: string; kind: string; score: number }>;
+    lots: Array<{ name: string; position: string; formula: string }>;
+    lilith: { position: string; house: number };
+    lunarPhase: { phase: string; illumination: number; waxing: boolean };
+    voidOfCourse: { voc: boolean; nextSignChangeDays: number };
+    shape: { shape: string; largestGapDeg: number; handle?: string };
+    sect: "day" | "night";
+  };
   rigorous?: boolean;
 }
 
-function describePlanet(p: PlanetPosition, house: number) {
+function describePlanet(p: PlanetPosition, house: number, dignity?: DignityResult) {
   const a = p.address;
   return {
     planet: p.name,
@@ -173,6 +286,7 @@ function describePlanet(p: PlanetPosition, house: number) {
     gearK: a.gearK.toString(),
     shadowLane: a.shadowLane(),
     boundaryLane: a.boundaryLane(),
+    dignity: dignity?.kind,
   };
 }
 
@@ -194,6 +308,7 @@ export function buildReadingBundle(chart: FullChart, rigorous = false): ReadingB
   );
   const k = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
 
+  const dignityByName = new Map(chart.dignities.map((d) => [d.planet, d]));
   return {
     meta: {
       name: b.name,
@@ -202,7 +317,9 @@ export function buildReadingBundle(chart: FullChart, rigorous = false): ReadingB
       longitude: b.longitude,
       houseSystem: b.houseSystem,
     },
-    foundation: chart.ephemeris.planets.map((p) => describePlanet(p, chart.planetHouses[p.name])),
+    foundation: chart.ephemeris.planets.map((p) =>
+      describePlanet(p, chart.planetHouses[p.name], dignityByName.get(p.name as never)),
+    ),
     conventionalAspects: chart.aspects
       .filter((a) => a.aspect.family === "cardinal" || a.aspect.family === "classical")
       .map((a) => ({
@@ -210,6 +327,7 @@ export function buildReadingBundle(chart: FullChart, rigorous = false): ReadingB
         b: a.b,
         aspect: a.aspect.name,
         orb: `${(Number(a.orbDeltaArcsec) / 3600).toFixed(2)}°`,
+        applying: a.applying,
       })),
     shadowBonds: chart.shadowNetwork.map((s) => ({
       a: s.a,
@@ -238,6 +356,35 @@ export function buildReadingBundle(chart: FullChart, rigorous = false): ReadingB
         nakshatra: p.nakshatra.name,
         pada: p.nakshatra.pada,
       })),
+    },
+    traditional: {
+      dignities: chart.dignities.map((d) => ({
+        planet: d.planet,
+        sign: d.sign,
+        kind: d.kind,
+        score: d.score,
+      })),
+      lots: chart.lots.map((l) => ({
+        name: l.name,
+        position: formatPosition(l.longitudeArcsec),
+        formula: l.formula,
+      })),
+      lilith: { position: formatPosition(chart.lilith.longitudeArcsec), house: chart.lilith.house },
+      lunarPhase: {
+        phase: chart.lunarPhase.phase,
+        illumination: chart.lunarPhase.illumination,
+        waxing: chart.lunarPhase.waxing,
+      },
+      voidOfCourse: {
+        voc: chart.voidOfCourse.voc,
+        nextSignChangeDays: chart.voidOfCourse.nextSignChangeDays,
+      },
+      shape: {
+        shape: chart.shape.shape,
+        largestGapDeg: chart.shape.largestGapDeg,
+        handle: chart.shape.handle,
+      },
+      sect: chart.isDayChart ? "day" : "night",
     },
     rigorous,
   };

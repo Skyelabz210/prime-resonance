@@ -6,6 +6,8 @@ import { CrtAddress, arcsecDiff, carryTuple } from "./crt";
 import { FULL_CIRCLE_ARCSEC } from "./constants";
 import type { PlanetPosition } from "./ephemeris";
 
+void CrtAddress; // imported for type re-export from index files
+
 export interface AspectDef {
   name: string;
   family: "cardinal" | "classical" | "minor" | "quintile" | "septile" | "undecile" | "tredecile";
@@ -72,7 +74,10 @@ export interface ClassifiedAspect {
   separationArcsec: bigint;
   orbDeltaArcsec: bigint; // |separation - exact| (canonical)
   carry: [number, number, number]; // (c7, c11, c13)
+  /** True if the aspect is forming (faster body still approaching the angle). */
   applying?: boolean;
+  /** Per-body mean daily motion in arcsec/day, signed (negative = retrograde). */
+  relativeMotionArcsecPerDay?: number;
 }
 
 function angularDist(sep: bigint, exact: bigint): bigint {
@@ -83,15 +88,52 @@ function angularDist(sep: bigint, exact: bigint): bigint {
   return d;
 }
 
+// Mean daily motion (arcsec/day) — used for applying/separating direction.
+const MEAN_MOTION: Record<string, number> = {
+  Sun: 3548,
+  Moon: 47400,
+  Mercury: 14400,
+  Venus: 5760,
+  Mars: 1886,
+  Jupiter: 299,
+  Saturn: 120,
+  Uranus: 42,
+  Neptune: 21,
+  Pluto: 14,
+  NorthNode: -190,
+  Chiron: 30,
+  Lilith: 401,
+};
+
+function signedSpeed(name: string, retrograde: boolean): number {
+  const s = MEAN_MOTION[name] ?? 0;
+  return retrograde ? -Math.abs(s) : s;
+}
+
 export function classifyPair(a: PlanetPosition, b: PlanetPosition): ClassifiedAspect[] {
   const sep = arcsecDiff(a.longitudeArcsec, b.longitudeArcsec);
   const carry = carryTuple(sep);
   const matches: ClassifiedAspect[] = [];
+  // Relative speed of A vs. B (signed). If |speed_a| > |speed_b|, A is the
+  // faster body. Applying = faster body still approaching the aspect angle.
+  const speedA = signedSpeed(a.name, !!a.retrograde);
+  const speedB = signedSpeed(b.name, !!b.retrograde);
+  const relSpeed = speedA - speedB;
+
   for (const def of ASPECT_CATALOG) {
     const d1 = angularDist(sep, def.exactArcsec);
     const d2 = angularDist(sep, (FULL_CIRCLE_ARCSEC - def.exactArcsec) % FULL_CIRCLE_ARCSEC);
     const d = d1 < d2 ? d1 : d2;
     if (d <= def.orbArcsec) {
+      // Applying check: whether the absolute separation is decreasing.
+      // If A is moving faster than B in the positive direction and currently
+      // less than the aspect angle, the orb is closing → applying.
+      // (Approximate; sufficient for UI badge.)
+      let applying: boolean | undefined;
+      if (relSpeed !== 0) {
+        const closerSide = d1 < d2 ? def.exactArcsec : FULL_CIRCLE_ARCSEC - def.exactArcsec;
+        applying = sep < closerSide ? relSpeed > 0 : relSpeed < 0;
+      }
       matches.push({
         a: a.name,
         b: b.name,
@@ -99,6 +141,8 @@ export function classifyPair(a: PlanetPosition, b: PlanetPosition): ClassifiedAs
         separationArcsec: sep,
         orbDeltaArcsec: d,
         carry,
+        applying,
+        relativeMotionArcsecPerDay: relSpeed,
       });
     }
   }
@@ -188,12 +232,24 @@ export function findClassicallyInvisible(
 }
 
 // Aspect patterns
+export type PatternType =
+  | "Grand Trine"
+  | "T-Square"
+  | "Yod"
+  | "Grand Cross"
+  | "Kite"
+  | "Mystic Rectangle"
+  | "Stellium";
+
 export interface Pattern {
-  type: "Grand Trine" | "T-Square" | "Yod" | "Grand Cross";
+  type: PatternType;
   planets: string[];
 }
 
-export function findAspectPatterns(aspects: ClassifiedAspect[]): Pattern[] {
+export function findAspectPatterns(
+  aspects: ClassifiedAspect[],
+  positions?: Array<{ name: string; longitudeArcsec: bigint }>,
+): Pattern[] {
   const byPair = new Map<string, ClassifiedAspect[]>();
   const k = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
   for (const a of aspects) {
@@ -211,12 +267,20 @@ export function findAspectPatterns(aspects: ClassifiedAspect[]): Pattern[] {
   const ps = [...allPlanets];
   const out: Pattern[] = [];
 
+  const grandTrines: string[][] = [];
   // Grand Trine: 3 planets all trine
   for (let i = 0; i < ps.length; i++)
     for (let j = i + 1; j < ps.length; j++)
       for (let l = j + 1; l < ps.length; l++)
-        if (has(ps[i], ps[j], "Trine") && has(ps[j], ps[l], "Trine") && has(ps[i], ps[l], "Trine"))
-          out.push({ type: "Grand Trine", planets: [ps[i], ps[j], ps[l]] });
+        if (
+          has(ps[i], ps[j], "Trine") &&
+          has(ps[j], ps[l], "Trine") &&
+          has(ps[i], ps[l], "Trine")
+        ) {
+          const t = [ps[i], ps[j], ps[l]];
+          grandTrines.push(t);
+          out.push({ type: "Grand Trine", planets: t });
+        }
 
   // T-Square: A opp B; C square A and B
   for (let i = 0; i < ps.length; i++)
@@ -237,6 +301,78 @@ export function findAspectPatterns(aspects: ClassifiedAspect[]): Pattern[] {
           if (has(ps[i], ps[l], "Quincunx") && has(ps[j], ps[l], "Quincunx"))
             out.push({ type: "Yod", planets: [ps[i], ps[j], ps[l]] });
         }
+
+  // Grand Cross: two oppositions, four squares — 4 planets in a square + cross.
+  for (let i = 0; i < ps.length; i++)
+    for (let j = i + 1; j < ps.length; j++)
+      for (let l = 0; l < ps.length; l++)
+        for (let m = l + 1; m < ps.length; m++) {
+          if (l === i || l === j || m === i || m === j) continue;
+          if (
+            has(ps[i], ps[j], "Opposition") &&
+            has(ps[l], ps[m], "Opposition") &&
+            has(ps[i], ps[l], "Square") &&
+            has(ps[i], ps[m], "Square") &&
+            has(ps[j], ps[l], "Square") &&
+            has(ps[j], ps[m], "Square")
+          )
+            out.push({ type: "Grand Cross", planets: [ps[i], ps[j], ps[l], ps[m]] });
+        }
+
+  // Kite: a Grand Trine + a 4th planet opposing one apex, sextile to the other two.
+  for (const gt of grandTrines) {
+    const [A, B, C] = gt;
+    for (const D of ps) {
+      if (gt.includes(D)) continue;
+      const opposesA = has(A, D, "Opposition");
+      const opposesB = has(B, D, "Opposition");
+      const opposesC = has(C, D, "Opposition");
+      const opp = opposesA ? A : opposesB ? B : opposesC ? C : null;
+      if (!opp) continue;
+      const others = gt.filter((p) => p !== opp);
+      if (others.every((p) => has(p, D, "Sextile")))
+        out.push({ type: "Kite", planets: [...gt, D] });
+    }
+  }
+
+  // Mystic Rectangle: two oppositions whose endpoints are also linked by sextiles + trines.
+  for (let i = 0; i < ps.length; i++)
+    for (let j = i + 1; j < ps.length; j++)
+      for (let l = 0; l < ps.length; l++)
+        for (let m = l + 1; m < ps.length; m++) {
+          if (l === i || l === j || m === i || m === j) continue;
+          if (
+            has(ps[i], ps[j], "Opposition") &&
+            has(ps[l], ps[m], "Opposition") &&
+            ((has(ps[i], ps[l], "Sextile") &&
+              has(ps[j], ps[m], "Sextile") &&
+              has(ps[i], ps[m], "Trine") &&
+              has(ps[j], ps[l], "Trine")) ||
+              (has(ps[i], ps[m], "Sextile") &&
+                has(ps[j], ps[l], "Sextile") &&
+                has(ps[i], ps[l], "Trine") &&
+                has(ps[j], ps[m], "Trine")))
+          )
+            out.push({
+              type: "Mystic Rectangle",
+              planets: [ps[i], ps[j], ps[l], ps[m]],
+            });
+        }
+
+  // Stellium: 3+ planets within 10° (and ideally in same sign).
+  if (positions) {
+    const sorted = [...positions].sort((p, q) => Number(p.longitudeArcsec - q.longitudeArcsec));
+    const STELLIUM_ARC = 36000n; // 10°
+    for (let i = 0; i < sorted.length; i++) {
+      const group: string[] = [sorted[i].name];
+      for (let j = i + 1; j < sorted.length; j++) {
+        const d = sorted[j].longitudeArcsec - sorted[i].longitudeArcsec;
+        if (d > STELLIUM_ARC) break;
+        group.push(sorted[j].name);
+      }
+      if (group.length >= 3) out.push({ type: "Stellium", planets: group });
+    }
+  }
 
   return out;
 }

@@ -136,6 +136,9 @@ export function BirthForm({ onSubmit }: { onSubmit: (b: BirthData) => void }) {
           >
             <option value="WholeSign">Whole Sign</option>
             <option value="Placidus">Placidus</option>
+            <option value="Equal">Equal</option>
+            <option value="Porphyry">Porphyry</option>
+            <option value="Koch">Koch</option>
           </select>
         </div>
         <div className="flex items-end">

@@ -5,7 +5,7 @@ import { ARCSEC_PER_SIGN, FULL_CIRCLE_ARCSEC } from "./constants";
 
 const DEG = Math.PI / 180;
 
-export type HouseSystem = "WholeSign" | "Placidus";
+export type HouseSystem = "WholeSign" | "Placidus" | "Equal" | "Porphyry" | "Koch";
 
 function norm360(d: number): number {
   d = d % 360;
@@ -92,6 +92,70 @@ function placidusCusps(jd: number, latDeg: number, lonDeg: number): number[] {
   return cusps;
 }
 
+function equalCusps(asc: number): number[] {
+  // 12 cusps each 30° from Ascendant.
+  return Array.from({ length: 12 }, (_, k) => norm360(asc + 30 * k));
+}
+
+function porphyryCusps(asc: number, mc: number): number[] {
+  // Trisect each quadrant (MC→ASC, ASC→IC, IC→DESC, DESC→MC).
+  const ic = norm360(mc + 180);
+  const desc = norm360(asc + 180);
+  const cusps: number[] = new Array(12);
+  cusps[0] = asc;
+  cusps[3] = ic;
+  cusps[6] = desc;
+  cusps[9] = mc;
+  const trisect = (start: number, end: number) => {
+    const span = (end - start + 360) % 360;
+    return [norm360(start + span / 3), norm360(start + (2 * span) / 3)];
+  };
+  [cusps[10], cusps[11]] = trisect(mc, asc);
+  [cusps[1], cusps[2]] = trisect(asc, ic);
+  [cusps[4], cusps[5]] = trisect(ic, desc);
+  [cusps[7], cusps[8]] = trisect(desc, mc);
+  return cusps;
+}
+
+function kochCusps(jd: number, latDeg: number, lonDeg: number): number[] {
+  // Koch: trisect by RAMC at fractions 1/3, 2/3 between MC and ASC.
+  // Returns 12 cusps in degrees. Standard formula (Meeus + Koch refinement).
+  const asc = ascendantDeg(jd, latDeg, lonDeg);
+  const mc = mcDeg(jd, lonDeg);
+  const ic = norm360(mc + 180);
+  const desc = norm360(asc + 180);
+  const lst = norm360(gmstDeg(jd) + lonDeg);
+  const eps = obliquityDeg(jd) * DEG;
+  const phi = latDeg * DEG;
+
+  function cuspForFraction(frac: number, baseRamcDeg: number): number {
+    // Koch ascendant-formula at RAMC = baseRamcDeg + frac·90°.
+    const ramc = norm360(baseRamcDeg + frac * 90) * DEG;
+    const y = -Math.cos(ramc);
+    const x = Math.sin(ramc) * Math.cos(eps) + Math.tan(phi) * Math.sin(eps);
+    return norm360(Math.atan2(y, x) / DEG);
+  }
+
+  const cusps: number[] = new Array(12);
+  cusps[0] = asc;
+  cusps[3] = ic;
+  cusps[6] = desc;
+  cusps[9] = mc;
+  // From MC (ramc=lst) to ASC (ramc=lst+90): cusps 11, 12 at 1/3, 2/3.
+  cusps[10] = cuspForFraction(1 / 3, lst);
+  cusps[11] = cuspForFraction(2 / 3, lst);
+  // From ASC (ramc=lst+90) to IC (ramc=lst+180): cusps 2, 3.
+  cusps[1] = cuspForFraction(1 / 3, lst + 90);
+  cusps[2] = cuspForFraction(2 / 3, lst + 90);
+  // From IC to DESC.
+  cusps[4] = cuspForFraction(1 / 3, lst + 180);
+  cusps[5] = cuspForFraction(2 / 3, lst + 180);
+  // From DESC to MC.
+  cusps[7] = cuspForFraction(1 / 3, lst + 270);
+  cusps[8] = cuspForFraction(2 / 3, lst + 270);
+  return cusps;
+}
+
 export function computeHouses(
   jd: number,
   latDeg: number,
@@ -108,8 +172,14 @@ export function computeHouses(
       { length: 12 },
       (_, k) => Number((signStart + BigInt(k) * ARCSEC_PER_SIGN) % FULL_CIRCLE_ARCSEC) / 3600,
     );
-  } else {
+  } else if (system === "Placidus") {
     cuspsDeg = placidusCusps(jd, latDeg, lonDeg);
+  } else if (system === "Equal") {
+    cuspsDeg = equalCusps(asc);
+  } else if (system === "Porphyry") {
+    cuspsDeg = porphyryCusps(asc, mc);
+  } else {
+    cuspsDeg = kochCusps(jd, latDeg, lonDeg);
   }
   const cuspsArcsec = cuspsDeg.map(degToArcsec);
   return {
