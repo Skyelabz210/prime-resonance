@@ -23,7 +23,7 @@ This is **Phase 1**. Synastry, transits, progressions, the 3D gear-manifold toru
 
 ### Visual direction
 
-Deep cosmic gradient `#0a0e1a → #1a1f2e`, electric cyan primary, **violet for Shadow Prime**, amber for Boundary Prime, gold for Transport Core. Cormorant Garamond headlines, Inter body, JetBrains Mono for residue chips. Footer tagline: *"Truth cannot be approximated."*
+Deep cosmic gradient `#0a0e1a → #1a1f2e`, electric cyan primary, **violet for Shadow Prime**, amber for Boundary Prime, gold for Transport Core. Cormorant Garamond headlines, Inter body, JetBrains Mono for residue chips. Footer tagline: _"Truth cannot be approximated."_
 
 ### Out of scope this phase
 
@@ -34,6 +34,7 @@ Synastry, composites, transits, progressions, 3D torus, asteroids, fixed stars, 
 ### Technical section
 
 **Stack**
+
 - TanStack Start v1 + React 19 + Tailwind v4 (existing shell)
 - `BigInt` everywhere on the hot path; `Number` only inside Meeus, with a single `BigInt(Math.round(x))` exit per planet (matches your Python boundary)
 - Lovable Cloud enabled solely for the AI Gateway server route (no DB tables)

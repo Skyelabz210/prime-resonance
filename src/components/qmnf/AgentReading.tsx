@@ -7,7 +7,9 @@ export function AgentReading({ bundle }: { bundle: ReadingBundle }) {
   const [error, setError] = useState<string | null>(null);
 
   const stream = async () => {
-    setText(""); setError(null); setLoading(true);
+    setText("");
+    setError(null);
+    setLoading(true);
     try {
       const res = await fetch("/api/qmnf/reading", {
         method: "POST",
@@ -20,7 +22,8 @@ export function AgentReading({ bundle }: { bundle: ReadingBundle }) {
       }
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let buf = "", done = false;
+      let buf = "",
+        done = false;
       while (!done) {
         const r = await reader.read();
         if (r.done) break;
@@ -33,31 +36,45 @@ export function AgentReading({ bundle }: { bundle: ReadingBundle }) {
           if (line.startsWith(":") || line.trim() === "") continue;
           if (!line.startsWith("data: ")) continue;
           const json = line.slice(6).trim();
-          if (json === "[DONE]") { done = true; break; }
+          if (json === "[DONE]") {
+            done = true;
+            break;
+          }
           try {
             const parsed = JSON.parse(json);
             const c = parsed.choices?.[0]?.delta?.content;
-            if (c) setText(t => t + c);
-          } catch { buf = line + "\n" + buf; break; }
+            if (c) setText((t) => t + c);
+          } catch {
+            buf = line + "\n" + buf;
+            break;
+          }
         }
       }
-    } catch (e: any) {
-      setError(e.message || "Failed");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="rounded-lg border p-5 backdrop-blur"
-      style={{ borderColor: "#9d7bff33", background: "linear-gradient(135deg,#1a1f3a40,#9d7bff08)" }}>
+    <div
+      className="rounded-lg border p-5 backdrop-blur"
+      style={{
+        borderColor: "#9d7bff33",
+        background: "linear-gradient(135deg,#1a1f3a40,#9d7bff08)",
+      }}
+    >
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-serif text-2xl" style={{ color: "#e6e8ff" }}>Agent Reading</h2>
+        <h2 className="font-serif text-2xl" style={{ color: "#e6e8ff" }}>
+          Agent Reading
+        </h2>
         <button
           disabled={loading}
           onClick={stream}
           className="px-4 py-2 rounded text-sm font-mono uppercase tracking-widest disabled:opacity-50"
-          style={{ background: "linear-gradient(135deg,#9d7bff,#5a3fff)", color: "white" }}>
+          style={{ background: "linear-gradient(135deg,#9d7bff,#5a3fff)", color: "white" }}
+        >
           {loading ? "Streaming…" : text ? "Re-read" : "Verbalize Chart"}
         </button>
       </div>
@@ -72,8 +89,8 @@ export function AgentReading({ bundle }: { bundle: ReadingBundle }) {
         </div>
       ) : (
         <p className="text-xs text-white/40 italic">
-          The agent verbalizes only what the bundle contains — every shadow bond,
-          every Face-of-Zero locus, every Maya station — without invention.
+          The agent verbalizes only what the bundle contains — every shadow bond, every Face-of-Zero
+          locus, every Maya station — without invention.
         </p>
       )}
     </div>

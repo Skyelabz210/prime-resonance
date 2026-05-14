@@ -9,13 +9,79 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VedicRouteImport } from './routes/vedic'
+import { Route as TransitsRouteImport } from './routes/transits'
+import { Route as TimelineRouteImport } from './routes/timeline'
+import { Route as SynastryRouteImport } from './routes/synastry'
+import { Route as ProgressedRouteImport } from './routes/progressed'
+import { Route as NatalRouteImport } from './routes/natal'
+import { Route as LibraryRouteImport } from './routes/library'
+import { Route as CodexRouteImport } from './routes/codex'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CodexTheoremsRouteImport } from './routes/codex.theorems'
+import { Route as CodexPagesRouteImport } from './routes/codex.pages'
+import { Route as CodexFalsifyRouteImport } from './routes/codex.falsify'
 import { Route as ApiQmnfReadingRouteImport } from './routes/api/qmnf.reading'
 
+const VedicRoute = VedicRouteImport.update({
+  id: '/vedic',
+  path: '/vedic',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TransitsRoute = TransitsRouteImport.update({
+  id: '/transits',
+  path: '/transits',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TimelineRoute = TimelineRouteImport.update({
+  id: '/timeline',
+  path: '/timeline',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SynastryRoute = SynastryRouteImport.update({
+  id: '/synastry',
+  path: '/synastry',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProgressedRoute = ProgressedRouteImport.update({
+  id: '/progressed',
+  path: '/progressed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NatalRoute = NatalRouteImport.update({
+  id: '/natal',
+  path: '/natal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibraryRoute = LibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CodexRoute = CodexRouteImport.update({
+  id: '/codex',
+  path: '/codex',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const CodexTheoremsRoute = CodexTheoremsRouteImport.update({
+  id: '/theorems',
+  path: '/theorems',
+  getParentRoute: () => CodexRoute,
+} as any)
+const CodexPagesRoute = CodexPagesRouteImport.update({
+  id: '/pages',
+  path: '/pages',
+  getParentRoute: () => CodexRoute,
+} as any)
+const CodexFalsifyRoute = CodexFalsifyRouteImport.update({
+  id: '/falsify',
+  path: '/falsify',
+  getParentRoute: () => CodexRoute,
 } as any)
 const ApiQmnfReadingRoute = ApiQmnfReadingRouteImport.update({
   id: '/api/qmnf/reading',
@@ -25,38 +91,196 @@ const ApiQmnfReadingRoute = ApiQmnfReadingRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/codex': typeof CodexRouteWithChildren
+  '/library': typeof LibraryRoute
+  '/natal': typeof NatalRoute
+  '/progressed': typeof ProgressedRoute
+  '/synastry': typeof SynastryRoute
+  '/timeline': typeof TimelineRoute
+  '/transits': typeof TransitsRoute
+  '/vedic': typeof VedicRoute
+  '/codex/falsify': typeof CodexFalsifyRoute
+  '/codex/pages': typeof CodexPagesRoute
+  '/codex/theorems': typeof CodexTheoremsRoute
   '/api/qmnf/reading': typeof ApiQmnfReadingRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/codex': typeof CodexRouteWithChildren
+  '/library': typeof LibraryRoute
+  '/natal': typeof NatalRoute
+  '/progressed': typeof ProgressedRoute
+  '/synastry': typeof SynastryRoute
+  '/timeline': typeof TimelineRoute
+  '/transits': typeof TransitsRoute
+  '/vedic': typeof VedicRoute
+  '/codex/falsify': typeof CodexFalsifyRoute
+  '/codex/pages': typeof CodexPagesRoute
+  '/codex/theorems': typeof CodexTheoremsRoute
   '/api/qmnf/reading': typeof ApiQmnfReadingRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/codex': typeof CodexRouteWithChildren
+  '/library': typeof LibraryRoute
+  '/natal': typeof NatalRoute
+  '/progressed': typeof ProgressedRoute
+  '/synastry': typeof SynastryRoute
+  '/timeline': typeof TimelineRoute
+  '/transits': typeof TransitsRoute
+  '/vedic': typeof VedicRoute
+  '/codex/falsify': typeof CodexFalsifyRoute
+  '/codex/pages': typeof CodexPagesRoute
+  '/codex/theorems': typeof CodexTheoremsRoute
   '/api/qmnf/reading': typeof ApiQmnfReadingRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/qmnf/reading'
+  fullPaths:
+    | '/'
+    | '/codex'
+    | '/library'
+    | '/natal'
+    | '/progressed'
+    | '/synastry'
+    | '/timeline'
+    | '/transits'
+    | '/vedic'
+    | '/codex/falsify'
+    | '/codex/pages'
+    | '/codex/theorems'
+    | '/api/qmnf/reading'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/qmnf/reading'
-  id: '__root__' | '/' | '/api/qmnf/reading'
+  to:
+    | '/'
+    | '/codex'
+    | '/library'
+    | '/natal'
+    | '/progressed'
+    | '/synastry'
+    | '/timeline'
+    | '/transits'
+    | '/vedic'
+    | '/codex/falsify'
+    | '/codex/pages'
+    | '/codex/theorems'
+    | '/api/qmnf/reading'
+  id:
+    | '__root__'
+    | '/'
+    | '/codex'
+    | '/library'
+    | '/natal'
+    | '/progressed'
+    | '/synastry'
+    | '/timeline'
+    | '/transits'
+    | '/vedic'
+    | '/codex/falsify'
+    | '/codex/pages'
+    | '/codex/theorems'
+    | '/api/qmnf/reading'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CodexRoute: typeof CodexRouteWithChildren
+  LibraryRoute: typeof LibraryRoute
+  NatalRoute: typeof NatalRoute
+  ProgressedRoute: typeof ProgressedRoute
+  SynastryRoute: typeof SynastryRoute
+  TimelineRoute: typeof TimelineRoute
+  TransitsRoute: typeof TransitsRoute
+  VedicRoute: typeof VedicRoute
   ApiQmnfReadingRoute: typeof ApiQmnfReadingRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/vedic': {
+      id: '/vedic'
+      path: '/vedic'
+      fullPath: '/vedic'
+      preLoaderRoute: typeof VedicRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/transits': {
+      id: '/transits'
+      path: '/transits'
+      fullPath: '/transits'
+      preLoaderRoute: typeof TransitsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/timeline': {
+      id: '/timeline'
+      path: '/timeline'
+      fullPath: '/timeline'
+      preLoaderRoute: typeof TimelineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/synastry': {
+      id: '/synastry'
+      path: '/synastry'
+      fullPath: '/synastry'
+      preLoaderRoute: typeof SynastryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/progressed': {
+      id: '/progressed'
+      path: '/progressed'
+      fullPath: '/progressed'
+      preLoaderRoute: typeof ProgressedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/natal': {
+      id: '/natal'
+      path: '/natal'
+      fullPath: '/natal'
+      preLoaderRoute: typeof NatalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/library': {
+      id: '/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof LibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/codex': {
+      id: '/codex'
+      path: '/codex'
+      fullPath: '/codex'
+      preLoaderRoute: typeof CodexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/codex/theorems': {
+      id: '/codex/theorems'
+      path: '/theorems'
+      fullPath: '/codex/theorems'
+      preLoaderRoute: typeof CodexTheoremsRouteImport
+      parentRoute: typeof CodexRoute
+    }
+    '/codex/pages': {
+      id: '/codex/pages'
+      path: '/pages'
+      fullPath: '/codex/pages'
+      preLoaderRoute: typeof CodexPagesRouteImport
+      parentRoute: typeof CodexRoute
+    }
+    '/codex/falsify': {
+      id: '/codex/falsify'
+      path: '/falsify'
+      fullPath: '/codex/falsify'
+      preLoaderRoute: typeof CodexFalsifyRouteImport
+      parentRoute: typeof CodexRoute
     }
     '/api/qmnf/reading': {
       id: '/api/qmnf/reading'
@@ -68,10 +292,42 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface CodexRouteChildren {
+  CodexFalsifyRoute: typeof CodexFalsifyRoute
+  CodexPagesRoute: typeof CodexPagesRoute
+  CodexTheoremsRoute: typeof CodexTheoremsRoute
+}
+
+const CodexRouteChildren: CodexRouteChildren = {
+  CodexFalsifyRoute: CodexFalsifyRoute,
+  CodexPagesRoute: CodexPagesRoute,
+  CodexTheoremsRoute: CodexTheoremsRoute,
+}
+
+const CodexRouteWithChildren = CodexRoute._addFileChildren(CodexRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CodexRoute: CodexRouteWithChildren,
+  LibraryRoute: LibraryRoute,
+  NatalRoute: NatalRoute,
+  ProgressedRoute: ProgressedRoute,
+  SynastryRoute: SynastryRoute,
+  TimelineRoute: TimelineRoute,
+  TransitsRoute: TransitsRoute,
+  VedicRoute: VedicRoute,
   ApiQmnfReadingRoute: ApiQmnfReadingRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

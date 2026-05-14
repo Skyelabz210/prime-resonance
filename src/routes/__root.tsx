@@ -9,6 +9,8 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
+import { RigorProvider } from "@/lib/qmnf/rigor";
+import { RigorToggle } from "@/components/qmnf/RigorToggle";
 
 function NotFoundComponent() {
   return (
@@ -72,21 +74,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Prime Resonance — Dresden Codex Astrology" },
+      {
+        name: "description",
+        content:
+          "Astrology computed in exact integer arithmetic on the Dresden Codex substrate. Shadow Prime 11, lane-13 boundary network, runtime-verifiable theorems.",
+      },
+      { property: "og:title", content: "Prime Resonance — Dresden Codex Astrology" },
+      {
+        property: "og:description",
+        content: "Your chart on the CRT manifold. The discovery one toggle away.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
-    links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
-    ],
+    links: [{ rel: "stylesheet", href: appCss }],
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -108,12 +110,62 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+const NAV_LINKS: Array<{ to: string; label: string }> = [
+  { to: "/natal", label: "Natal" },
+  { to: "/vedic", label: "Vedic" },
+  { to: "/transits", label: "Transits" },
+  { to: "/timeline", label: "Timeline" },
+  { to: "/progressed", label: "Progressed" },
+  { to: "/synastry", label: "Synastry" },
+  { to: "/codex", label: "Codex" },
+  { to: "/library", label: "Library" },
+];
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      <RigorProvider>
+        <div
+          className="min-h-screen text-foreground"
+          style={{
+            background: "radial-gradient(ellipse at top, #1a1f3a 0%, #0a0e1a 60%, #050810 100%)",
+          }}
+        >
+          <header
+            className="border-b border-white/5 px-4 sm:px-6 py-4 backdrop-blur sticky top-0 z-30"
+            style={{ background: "rgba(10,14,26,0.7)" }}
+          >
+            <div className="mx-auto max-w-7xl flex flex-wrap items-center gap-3">
+              <Link to="/" className="font-serif text-lg" style={{ color: "#e6e8ff" }}>
+                ☉ <span style={{ color: "#9d7bff" }}>Prime Resonance</span>
+              </Link>
+              <nav className="flex-1 flex flex-wrap items-center gap-1 sm:gap-3 text-[11px] font-mono uppercase tracking-widest">
+                {NAV_LINKS.map((l) => (
+                  <Link
+                    key={l.to}
+                    to={l.to}
+                    className="text-white/55 hover:text-white/95 transition px-1.5 py-0.5"
+                    activeProps={{ style: { color: "#cfd6ff" } }}
+                  >
+                    {l.label}
+                  </Link>
+                ))}
+              </nav>
+              <RigorToggle />
+            </div>
+          </header>
+          <main className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
+            <Outlet />
+          </main>
+          <footer className="border-t border-white/5 px-6 py-6 mt-12">
+            <p className="text-center text-[11px] font-mono text-white/40 italic">
+              Truth cannot be approximated.
+            </p>
+          </footer>
+        </div>
+      </RigorProvider>
     </QueryClientProvider>
   );
 }
