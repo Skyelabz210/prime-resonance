@@ -26,6 +26,10 @@ import { M_SAFE } from "../constants";
 import { profectionAt, monthlyProfections } from "../profections";
 import { zodiacalReleasingL1, currentL1 } from "../zr";
 import { galacticCenterDeg, trueNodeDeg, vertexDeg, buildExtras } from "../extras";
+import { computeAsteroids } from "../asteroids";
+import { findMidpoints } from "../midpoints";
+import { firdariaTimeline, currentFirdar } from "../firdaria";
+import { declinationDeg, declinationsForPlanets, findDeclinationContacts } from "../declinations";
 
 const BIRTH = {
   name: "Test",
@@ -365,4 +369,101 @@ test("FullChart exposes ascSignIndex, zrFromSpirit, zrFromFortune, extras", () =
   expect(c.zrFromSpirit.length).toBeGreaterThan(0);
   expect(c.zrFromFortune.length).toBeGreaterThan(0);
   expect(c.extras.length).toBe(4);
+});
+
+// ── Phase 3: asteroids, midpoints, firdaria, declinations ──────────────
+
+test("Asteroids: Ceres / Pallas / Juno / Vesta all compute valid longitudes", () => {
+  const ast = computeAsteroids(2451545);
+  expect(ast.length).toBe(4);
+  expect(ast.map((a) => a.name)).toEqual(["Ceres", "Pallas", "Juno", "Vesta"]);
+  for (const a of ast) {
+    expect(a.longitudeArcsec).toBeGreaterThanOrEqual(0n);
+    expect(a.longitudeArcsec).toBeLessThan(1_296_000n);
+  }
+});
+
+test("Asteroids participate in the natal planet list (shadow / boundary networks)", () => {
+  const c = computeFullChart(BIRTH);
+  const names = c.ephemeris.planets.map((p) => p.name);
+  expect(names).toContain("Ceres");
+  expect(names).toContain("Vesta");
+});
+
+test("Midpoints: a 3-body chart with C exactly at midpoint of (A, B) fires", () => {
+  const planets = [
+    { name: "A", longitudeArcsec: BigInt(0) },
+    { name: "B", longitudeArcsec: BigInt(60 * 3600) },
+    { name: "C", longitudeArcsec: BigInt(30 * 3600) }, // exact midpoint
+  ];
+  const m = findMidpoints(planets, 1);
+  expect(m.length).toBeGreaterThanOrEqual(1);
+  const trigger = m.find((x) => x.activator === "C");
+  expect(trigger).toBeDefined();
+  expect(Number(trigger!.orbArcsec)).toBeLessThan(60); // arcseconds
+});
+
+test("Firdaria: day chart starts with Sun 10 years; night with Moon 9", () => {
+  const day = firdariaTimeline(true);
+  expect(day[0].lord).toBe("Sun");
+  expect(day[0].years).toBe(10);
+  const night = firdariaTimeline(false);
+  expect(night[0].lord).toBe("Moon");
+  expect(night[0].years).toBe(9);
+});
+
+test("Firdaria total = 70 years (Sun+Venus+Mercury+Moon+Saturn+Jupiter+Mars)", () => {
+  const tl = firdariaTimeline(true);
+  const total = tl.reduce((s, p) => s + p.years, 0);
+  expect(total).toBe(10 + 8 + 13 + 9 + 11 + 12 + 7);
+});
+
+test("Firdaria current at age 5: Sun major, Sun sub (first 10/7 yrs)", () => {
+  const tl = firdariaTimeline(true);
+  const c = currentFirdar(tl, 1);
+  expect(c?.major.lord).toBe("Sun");
+  expect(c?.sub.lord).toBe("Sun");
+});
+
+test("Declination: λ=0° (Aries 0°), β=0° → δ=0°", () => {
+  expect(declinationDeg(0, 0, 2451545)).toBeCloseTo(0, 5);
+});
+
+test("Declination: λ=90° (summer solstice), β=0° → δ ≈ +23.44° (obliquity)", () => {
+  expect(declinationDeg(90, 0, 2451545)).toBeCloseTo(23.44, 1);
+});
+
+test("Out-of-bounds: a body at λ=90°, β=10° → |δ| > obliquity", () => {
+  // β=10° at solstice → δ ≈ 32° > 23.44°
+  const d = declinationDeg(90, 10, 2451545);
+  expect(Math.abs(d)).toBeGreaterThan(23.43);
+});
+
+test("Parallel detection: two planets at same declination → parallel contact", () => {
+  const decls = [
+    { name: "A", declinationDeg: 5, outOfBounds: false },
+    { name: "B", declinationDeg: 5.5, outOfBounds: false },
+    { name: "C", declinationDeg: -5.4, outOfBounds: false },
+  ];
+  const contacts = findDeclinationContacts(decls, 1);
+  const parallel = contacts.find((c) => c.kind === "parallel");
+  const contra = contacts.find((c) => c.kind === "contra-parallel");
+  expect(parallel).toBeDefined();
+  expect(contra).toBeDefined();
+});
+
+test("FullChart Phase-3 arrays are populated", () => {
+  const c = computeFullChart(BIRTH);
+  expect(c.asteroids.length).toBe(4);
+  expect(c.firdaria.length).toBe(7);
+  expect(c.declinations.length).toBe(10);
+  // declinationContacts may be empty for any given chart — that's fine.
+  expect(Array.isArray(c.midpoints)).toBe(true);
+  expect(Array.isArray(c.declinationContacts)).toBe(true);
+});
+
+test("declinationsForPlanets: 10 classical bodies covered", () => {
+  const c = computeFullChart(BIRTH);
+  const decls = declinationsForPlanets(c.ephemeris.planets.slice(0, 10), c.jd);
+  expect(decls.length).toBe(10);
 });

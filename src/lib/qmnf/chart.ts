@@ -37,6 +37,15 @@ import type { PlanetName } from "./dignities";
 import { profectionAt, type ProfectionState } from "./profections";
 import { zodiacalReleasingL1, type ZRPeriod } from "./zr";
 import { buildExtras, type SensitivePoint } from "./extras";
+import { computeAsteroids, type AsteroidPosition } from "./asteroids";
+import { findMidpoints, type MidpointTrigger } from "./midpoints";
+import { firdariaTimeline, type FirdarPeriod } from "./firdaria";
+import {
+  declinationsForPlanets,
+  findDeclinationContacts,
+  type DeclinationInfo,
+  type DeclinationContact,
+} from "./declinations";
 
 export interface BirthData {
   name: string;
@@ -102,6 +111,16 @@ export interface FullChart {
   zrFromFortune: ZRPeriod[];
   /** True Node, Galactic Center, Vertex, Anti-Vertex. */
   extras: SensitivePoint[];
+  /** Ceres, Pallas, Juno, Vesta — the major feminine asteroids. */
+  asteroids: AsteroidPosition[];
+  /** Hard-aspect midpoint triggers (Ebertin's "/" notation). */
+  midpoints: MidpointTrigger[];
+  /** Firdaria timeline — Persian 75-year time-lord system. */
+  firdaria: FirdarPeriod[];
+  /** Planet declinations (with out-of-bounds flag). */
+  declinations: DeclinationInfo[];
+  /** Parallel + contra-parallel pairs. */
+  declinationContacts: DeclinationContact[];
 }
 
 function computeVedicLayer(jd: number, planets: PlanetPosition[]): VedicLayer {
@@ -144,9 +163,18 @@ export function computeFullChart(birth: BirthData): FullChart {
     retrograde: false,
     address: CrtAddress.fromArcsec(lilithArcsec),
   };
+  // Asteroids (Ceres, Pallas, Juno, Vesta) — folded in early so they
+  // participate in aspect + shadow + boundary detection.
+  const asteroids = computeAsteroids(jd);
+  const asteroidPlanets: PlanetPosition[] = asteroids.map((a) => ({
+    name: a.name,
+    longitudeArcsec: a.longitudeArcsec,
+    retrograde: a.retrograde,
+    address: a.address,
+  }));
   const ephemeris: EphemerisChart = {
     jd,
-    planets: [...ephemerisCore.planets, lilithPlanet],
+    planets: [...ephemerisCore.planets, lilithPlanet, ...asteroidPlanets],
   };
 
   const houses = computeHouses(jd, birth.latitude, birth.longitude, birth.houseSystem);
@@ -239,6 +267,48 @@ export function computeFullChart(birth: BirthData): FullChart {
   const zrFromSpirit = zodiacalReleasingL1(Number(spiritLot.longitudeArcsec / 108_000n), 90);
   const zrFromFortune = zodiacalReleasingL1(Number(fortuneLot.longitudeArcsec / 108_000n), 90);
   const extras = buildExtras(jd, birth.latitude, birth.longitude);
+
+  // Midpoint triggers (Ebertin) — needs the classical 10-body list only.
+  const midpoints = findMidpoints(
+    ephemeris.planets.filter((p) =>
+      [
+        "Sun",
+        "Moon",
+        "Mercury",
+        "Venus",
+        "Mars",
+        "Jupiter",
+        "Saturn",
+        "Uranus",
+        "Neptune",
+        "Pluto",
+      ].includes(p.name),
+    ),
+    1.5,
+  );
+
+  // Firdaria — Persian time-lord system.
+  const firdaria = firdariaTimeline(dayChart);
+
+  // Declinations + parallels.
+  const declinations = declinationsForPlanets(
+    ephemeris.planets.filter((p) =>
+      [
+        "Sun",
+        "Moon",
+        "Mercury",
+        "Venus",
+        "Mars",
+        "Jupiter",
+        "Saturn",
+        "Uranus",
+        "Neptune",
+        "Pluto",
+      ].includes(p.name),
+    ),
+    jd,
+  );
+  const declinationContacts = findDeclinationContacts(declinations);
   return {
     birth,
     jd,
@@ -271,6 +341,11 @@ export function computeFullChart(birth: BirthData): FullChart {
     zrFromSpirit,
     zrFromFortune,
     extras,
+    asteroids,
+    midpoints,
+    firdaria,
+    declinations,
+    declinationContacts,
   };
 }
 
@@ -340,6 +415,16 @@ export interface ReadingBundle {
       endAge: number;
       loosingOfTheBond: boolean;
     }>;
+    asteroids: Array<{
+      name: string;
+      position: string;
+      retrograde: boolean;
+      meaning: string;
+    }>;
+    midpoints: Array<{ pair: string; activator: string; orbDeg: number }>;
+    firdaria: Array<{ lord: string; startAge: number; endAge: number }>;
+    declinations: Array<{ planet: string; declinationDeg: number; outOfBounds: boolean }>;
+    declinationContacts: Array<{ a: string; b: string; kind: string; orbDeg: number }>;
   };
   rigorous?: boolean;
 }
@@ -498,6 +583,33 @@ export function buildReadingBundle(chart: FullChart, rigorous = false): ReadingB
         startAge: p.startAge,
         endAge: p.endAge,
         loosingOfTheBond: p.loosingOfTheBond,
+      })),
+      asteroids: chart.asteroids.map((a) => ({
+        name: a.name,
+        position: formatPosition(a.longitudeArcsec),
+        retrograde: a.retrograde,
+        meaning: a.meaning,
+      })),
+      midpoints: chart.midpoints.slice(0, 12).map((m) => ({
+        pair: m.pair,
+        activator: m.activator,
+        orbDeg: Number(m.orbArcsec) / 3600,
+      })),
+      firdaria: chart.firdaria.map((f) => ({
+        lord: f.lord,
+        startAge: f.startAge,
+        endAge: f.endAge,
+      })),
+      declinations: chart.declinations.map((d) => ({
+        planet: d.name,
+        declinationDeg: d.declinationDeg,
+        outOfBounds: d.outOfBounds,
+      })),
+      declinationContacts: chart.declinationContacts.map((c) => ({
+        a: c.a,
+        b: c.b,
+        kind: c.kind,
+        orbDeg: c.orbDeg,
       })),
     },
     rigorous,

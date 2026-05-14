@@ -21,6 +21,7 @@ import { TraditionalPanel } from "@/components/qmnf/TraditionalPanel";
 import { HarmonicsPanel } from "@/components/qmnf/HarmonicsPanel";
 import { SolarArcPanel } from "@/components/qmnf/SolarArcPanel";
 import { TimeLordPanel } from "@/components/qmnf/TimeLordPanel";
+import { Phase3Panel } from "@/components/qmnf/Phase3Panel";
 import { useRigor } from "@/lib/qmnf/rigor";
 import { getChart, saveChart } from "@/lib/qmnf/store";
 
@@ -100,6 +101,10 @@ export function NatalPage() {
 
           <section>
             <TimeLordPanel chart={chart} />
+          </section>
+
+          <section>
+            <Phase3Panel chart={chart} />
           </section>
 
           <section className="grid lg:grid-cols-2 gap-6">
