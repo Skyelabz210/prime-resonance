@@ -7,10 +7,14 @@ export function BoundaryNetworkPanel({ chart }: { chart: FullChart }) {
     grouped.get(b.laneName)!.push(b);
   }
   return (
-    <div className="rounded-lg border p-4 backdrop-blur"
-      style={{ borderColor: "#ffb34733", background: "#ffb34708" }}>
+    <div
+      className="rounded-lg border p-4 backdrop-blur"
+      style={{ borderColor: "#ffb34733", background: "#ffb34708" }}
+    >
       <div className="flex items-baseline justify-between mb-3">
-        <h2 className="font-serif text-xl" style={{ color: "#ffd9a3" }}>Boundary Network</h2>
+        <h2 className="font-serif text-xl" style={{ color: "#ffd9a3" }}>
+          Boundary Network
+        </h2>
         <span className="text-[10px] font-mono uppercase tracking-widest text-white/40">
           Prime 13 · {chart.boundaryNetwork.length} bonds
         </span>
@@ -21,13 +25,19 @@ export function BoundaryNetworkPanel({ chart }: { chart: FullChart }) {
       <div className="space-y-2 max-h-72 overflow-auto">
         {[...grouped.entries()].map(([lane, bonds]) => (
           <div key={lane}>
-            <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: "#ffb347" }}>
+            <div
+              className="text-[10px] font-mono uppercase tracking-widest"
+              style={{ color: "#ffb347" }}
+            >
               {lane} · r₁₃={bonds[0].residue}
             </div>
             <div className="mt-1 flex flex-wrap gap-1.5">
               {bonds.map((b, i) => (
-                <span key={i} className="text-xs font-mono px-2 py-0.5 rounded"
-                  style={{ background: "#ffffff08", color: "#ffd9a3" }}>
+                <span
+                  key={i}
+                  className="text-xs font-mono px-2 py-0.5 rounded"
+                  style={{ background: "#ffffff08", color: "#ffd9a3" }}
+                >
                   {b.a}–{b.b}
                 </span>
               ))}

@@ -7,14 +7,19 @@ const DEG = Math.PI / 180;
 
 export type HouseSystem = "WholeSign" | "Placidus";
 
-function norm360(d: number): number { d = d % 360; return d < 0 ? d + 360 : d; }
+function norm360(d: number): number {
+  d = d % 360;
+  return d < 0 ? d + 360 : d;
+}
 
 // Greenwich Mean Sidereal Time at JD (degrees)
 function gmstDeg(jd: number): number {
   const T = jdToCenturiesJ2000(jd);
   const gmst =
-    280.46061837 + 360.98564736629 * (jd - 2451545.0)
-    + 0.000387933 * T * T - (T * T * T) / 38710000;
+    280.46061837 +
+    360.98564736629 * (jd - 2451545.0) +
+    0.000387933 * T * T -
+    (T * T * T) / 38710000;
   return norm360(gmst);
 }
 
@@ -30,7 +35,7 @@ function ascendantDeg(jd: number, latDeg: number, lonDeg: number): number {
   const phi = latDeg * DEG;
   const y = -Math.cos(ramc);
   const x = Math.sin(ramc) * Math.cos(eps) + Math.tan(phi) * Math.sin(eps);
-  let asc = Math.atan2(y, x) / DEG;
+  const asc = Math.atan2(y, x) / DEG;
   return norm360(asc);
 }
 
@@ -38,7 +43,7 @@ function mcDeg(jd: number, lonDeg: number): number {
   const lst = norm360(gmstDeg(jd) + lonDeg);
   const eps = obliquityDeg(jd) * DEG;
   const ramc = lst * DEG;
-  let mc = Math.atan2(Math.sin(ramc), Math.cos(ramc) * Math.cos(eps)) / DEG;
+  const mc = Math.atan2(Math.sin(ramc), Math.cos(ramc) * Math.cos(eps)) / DEG;
   return norm360(mc);
 }
 
@@ -46,7 +51,7 @@ export interface HouseChart {
   system: HouseSystem;
   ascDeg: number;
   mcDeg: number;
-  cuspsArcsec: bigint[];          // 12 cusps
+  cuspsArcsec: bigint[]; // 12 cusps
   cusps: CrtAddress[];
 }
 
@@ -63,25 +68,35 @@ function placidusCusps(jd: number, latDeg: number, lonDeg: number): number[] {
   const ic = norm360(mc + 180);
   const desc = norm360(asc + 180);
   const cusps: number[] = new Array(12);
-  cusps[0] = asc; cusps[3] = ic; cusps[6] = desc; cusps[9] = mc;
+  cusps[0] = asc;
+  cusps[3] = ic;
+  cusps[6] = desc;
+  cusps[9] = mc;
   // Trisect arcs (approx) — for high accuracy we'd iterate semi-arcs, this is acceptable for UI.
   const arc = (start: number, end: number) => {
-    let span = (end - start + 360) % 360;
+    const span = (end - start + 360) % 360;
     return [start + span / 3, start + (2 * span) / 3].map(norm360);
   };
   const [c11, c12] = arc(mc, asc);
-  cusps[10] = c11; cusps[11] = c12;
+  cusps[10] = c11;
+  cusps[11] = c12;
   const [c2, c3] = arc(asc, ic);
-  cusps[1] = c2; cusps[2] = c3;
+  cusps[1] = c2;
+  cusps[2] = c3;
   const [c5, c6] = arc(ic, desc);
-  cusps[4] = c5; cusps[5] = c6;
+  cusps[4] = c5;
+  cusps[5] = c6;
   const [c8, c9] = arc(desc, mc);
-  cusps[7] = c8; cusps[8] = c9;
+  cusps[7] = c8;
+  cusps[8] = c9;
   return cusps;
 }
 
 export function computeHouses(
-  jd: number, latDeg: number, lonDeg: number, system: HouseSystem,
+  jd: number,
+  latDeg: number,
+  lonDeg: number,
+  system: HouseSystem,
 ): HouseChart {
   const asc = ascendantDeg(jd, latDeg, lonDeg);
   const mc = mcDeg(jd, lonDeg);
@@ -89,15 +104,20 @@ export function computeHouses(
   if (system === "WholeSign") {
     const ascArcsec = degToArcsec(asc);
     const signStart = (ascArcsec / ARCSEC_PER_SIGN) * ARCSEC_PER_SIGN;
-    cuspsDeg = Array.from({ length: 12 }, (_, k) => Number((signStart + BigInt(k) * ARCSEC_PER_SIGN) % FULL_CIRCLE_ARCSEC) / 3600);
+    cuspsDeg = Array.from(
+      { length: 12 },
+      (_, k) => Number((signStart + BigInt(k) * ARCSEC_PER_SIGN) % FULL_CIRCLE_ARCSEC) / 3600,
+    );
   } else {
     cuspsDeg = placidusCusps(jd, latDeg, lonDeg);
   }
   const cuspsArcsec = cuspsDeg.map(degToArcsec);
   return {
-    system, ascDeg: asc, mcDeg: mc,
+    system,
+    ascDeg: asc,
+    mcDeg: mc,
     cuspsArcsec,
-    cusps: cuspsArcsec.map(a => CrtAddress.fromArcsec(a)),
+    cusps: cuspsArcsec.map((a) => CrtAddress.fromArcsec(a)),
   };
 }
 

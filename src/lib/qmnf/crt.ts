@@ -1,7 +1,11 @@
 // CRT primitives — exact integer arithmetic on the Safe Basis
 import {
-  SAFE_BASIS, M_SAFE, GEAR_MODULUS, FULL_CIRCLE_ARCSEC,
-  SHADOW_LANE_NAMES, BOUNDARY_LANE_NAMES,
+  SAFE_BASIS,
+  M_SAFE,
+  GEAR_MODULUS,
+  FULL_CIRCLE_ARCSEC,
+  SHADOW_LANE_NAMES,
+  BOUNDARY_LANE_NAMES,
 } from "./constants";
 
 export function modBig(a: bigint, n: bigint): bigint {
@@ -52,19 +56,24 @@ export function kEliminate(arcsec: bigint): bigint {
 }
 
 export interface CrtResidues {
-  r2: bigint; r3: bigint; r5: bigint; r7: bigint; r11: bigint; r13: bigint;
+  r2: bigint;
+  r3: bigint;
+  r5: bigint;
+  r7: bigint;
+  r11: bigint;
+  r13: bigint;
 }
 
 export class CrtAddress {
   constructor(
-    public arcsec: bigint,            // canonical longitude in [0, 1_296_000)
+    public arcsec: bigint, // canonical longitude in [0, 1_296_000)
     public r2: bigint,
     public r3: bigint,
     public r5: bigint,
     public r7: bigint,
     public r11: bigint,
     public r13: bigint,
-    public gearK: bigint,             // arcsec mod 323
+    public gearK: bigint, // arcsec mod 323
   ) {}
 
   static fromArcsec(n: bigint): CrtAddress {
@@ -95,10 +104,7 @@ export class CrtAddress {
 
   // Reconstruct from safe basis (sanity check — equals arcsec mod 30030)
   reconstructMod(): bigint {
-    return garnerReconstruct(
-      [this.r2, this.r3, this.r5, this.r7, this.r11, this.r13],
-      SAFE_BASIS,
-    );
+    return garnerReconstruct([this.r2, this.r3, this.r5, this.r7, this.r11, this.r13], SAFE_BASIS);
   }
 }
 

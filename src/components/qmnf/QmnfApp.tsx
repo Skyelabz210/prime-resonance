@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
 import {
-  computeFullChart, buildReadingBundle, type FullChart, type BirthData,
+  computeFullChart,
+  buildReadingBundle,
+  type FullChart,
+  type BirthData,
 } from "@/lib/qmnf/chart";
 import { ChartWheel } from "@/components/qmnf/ChartWheel";
 import { PlanetCard } from "@/components/qmnf/PlanetCard";
@@ -15,20 +18,23 @@ import { BirthForm } from "@/components/qmnf/BirthForm";
 
 export function QmnfApp() {
   const [birth, setBirth] = useState<BirthData | null>(null);
-  const chart = useMemo<FullChart | null>(
-    () => birth ? computeFullChart(birth) : null,
-    [birth],
-  );
-  const bundle = useMemo(() => chart ? buildReadingBundle(chart) : null, [chart]);
+  const chart = useMemo<FullChart | null>(() => (birth ? computeFullChart(birth) : null), [birth]);
+  const bundle = useMemo(() => (chart ? buildReadingBundle(chart) : null), [chart]);
 
   return (
-    <div className="min-h-screen text-foreground" style={{
-      background: "radial-gradient(ellipse at top, #1a1f3a 0%, #0a0e1a 60%, #050810 100%)",
-    }}>
+    <div
+      className="min-h-screen text-foreground"
+      style={{
+        background: "radial-gradient(ellipse at top, #1a1f3a 0%, #0a0e1a 60%, #050810 100%)",
+      }}
+    >
       <header className="border-b border-white/5 px-6 py-6">
         <div className="mx-auto max-w-7xl flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
           <div>
-            <h1 className="font-serif text-3xl sm:text-4xl tracking-tight" style={{ color: "#e6e8ff" }}>
+            <h1
+              className="font-serif text-3xl sm:text-4xl tracking-tight"
+              style={{ color: "#e6e8ff" }}
+            >
               QMNF <span style={{ color: "#9d7bff" }}>Astrology</span>
             </h1>
             <p className="text-xs sm:text-sm text-white/50 mt-1 font-mono">
@@ -51,12 +57,8 @@ export function QmnfApp() {
               <div className="space-y-3">
                 <h2 className="font-serif text-xl text-white/80">Foundation</h2>
                 <div className="grid gap-2">
-                  {chart.ephemeris.planets.map(p => (
-                    <PlanetCard
-                      key={p.name}
-                      planet={p}
-                      house={chart.planetHouses[p.name]}
-                    />
+                  {chart.ephemeris.planets.map((p) => (
+                    <PlanetCard key={p.name} planet={p} house={chart.planetHouses[p.name]} />
                   ))}
                 </div>
               </div>

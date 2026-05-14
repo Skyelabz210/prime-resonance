@@ -7,7 +7,9 @@ export function PatternsPanel({ chart }: { chart: FullChart }) {
       <div className="space-y-2 max-h-72 overflow-auto">
         {chart.patterns.map((p, i) => (
           <div key={i} className="rounded bg-white/5 px-3 py-2">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-white/40">{p.type}</div>
+            <div className="text-[10px] font-mono uppercase tracking-widest text-white/40">
+              {p.type}
+            </div>
             <div className="text-sm font-mono text-white/80">{p.planets.join(" · ")}</div>
           </div>
         ))}

@@ -2,14 +2,49 @@
 import { MAYA_EPOCH_JD } from "./constants";
 
 const TZOLKIN_NAMES = [
-  "Imix","Ik'","Ak'b'al","K'an","Chikchan","Kimi","Manik'","Lamat","Muluk","Ok",
-  "Chuwen","Eb","B'en","Ix","Men","K'ib'","Kaban","Etz'nab'","Kawak","Ajaw",
+  "Imix",
+  "Ik'",
+  "Ak'b'al",
+  "K'an",
+  "Chikchan",
+  "Kimi",
+  "Manik'",
+  "Lamat",
+  "Muluk",
+  "Ok",
+  "Chuwen",
+  "Eb",
+  "B'en",
+  "Ix",
+  "Men",
+  "K'ib'",
+  "Kaban",
+  "Etz'nab'",
+  "Kawak",
+  "Ajaw",
 ];
 const HAAB_MONTHS = [
-  "Pop","Wo'","Sip","Sotz'","Sek","Xul","Yaxk'in","Mol","Ch'en","Yax",
-  "Sak'","Keh","Mak","K'ank'in","Muwan","Pax","K'ayab'","Kumk'u","Wayeb'",
+  "Pop",
+  "Wo'",
+  "Sip",
+  "Sotz'",
+  "Sek",
+  "Xul",
+  "Yaxk'in",
+  "Mol",
+  "Ch'en",
+  "Yax",
+  "Sak'",
+  "Keh",
+  "Mak",
+  "K'ank'in",
+  "Muwan",
+  "Pax",
+  "K'ayab'",
+  "Kumk'u",
+  "Wayeb'",
 ];
-const STATIONS_819 = ["East-Red","North-White","West-Black","South-Yellow"];
+const STATIONS_819 = ["East-Red", "North-White", "West-Black", "South-Yellow"];
 
 export interface MayaPosition {
   longCount: string;
@@ -31,14 +66,18 @@ export function computeMaya(jd: number): MayaPosition {
 
   // Long Count (baktun.katun.tun.uinal.kin)
   let d = days;
-  const baktun = d / 144000n; d = pyMod(d, 144000n);
-  const katun = d / 7200n;    d = pyMod(d, 7200n);
-  const tun = d / 360n;       d = pyMod(d, 360n);
-  const uinal = d / 20n;      d = pyMod(d, 20n);
+  const baktun = d / 144000n;
+  d = pyMod(d, 144000n);
+  const katun = d / 7200n;
+  d = pyMod(d, 7200n);
+  const tun = d / 360n;
+  d = pyMod(d, 360n);
+  const uinal = d / 20n;
+  d = pyMod(d, 20n);
   const kin = d;
 
   // Tzolk'in: epoch was 4 Ajaw → number=4, name index 19
-  const tzNum = Number(pyMod(days + 3n, 13n)) + 1;     // start at 4
+  const tzNum = Number(pyMod(days + 3n, 13n)) + 1; // start at 4
   const tzName = TZOLKIN_NAMES[Number(pyMod(days + 19n, 20n))];
 
   // Haab: epoch was 8 Kumk'u → day 8 of month index 17
