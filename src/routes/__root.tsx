@@ -112,6 +112,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 const NAV_LINKS: Array<{ to: string; label: string }> = [
   { to: "/natal", label: "Natal" },
+  { to: "/theatre", label: "Theatre" },
   { to: "/vedic", label: "Vedic" },
   { to: "/transits", label: "Transits" },
   { to: "/timeline", label: "Timeline" },
