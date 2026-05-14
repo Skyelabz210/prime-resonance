@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ChangeEvent, type FocusEvent } from "react";
 import type { BirthData } from "@/lib/qmnf/chart";
 
 const DEFAULT: BirthData = {
@@ -14,11 +14,38 @@ const DEFAULT: BirthData = {
   houseSystem: "WholeSign",
 };
 
+// Select the field's current content when the user taps in, so the next
+// keystroke replaces it instead of prepending. Use rAF because mobile
+// browsers (notably Android Chrome) re-set the selection after focus.
+function selectAllOnFocus(e: FocusEvent<HTMLInputElement>) {
+  const el = e.currentTarget;
+  requestAnimationFrame(() => {
+    try {
+      el.select();
+    } catch {
+      /* number-typed input on some Safari builds; ignore */
+    }
+  });
+}
+
 export function BirthForm({ onSubmit }: { onSubmit: (b: BirthData) => void }) {
   const [b, setB] = useState<BirthData>(DEFAULT);
 
   const upd = <K extends keyof BirthData>(k: K, v: BirthData[K]) =>
     setB((prev) => ({ ...prev, [k]: v }));
+
+  // Parse a numeric input string; if empty, keep the previous value so
+  // mid-edit clears don't crash the chart computation.
+  const parseNum = (s: string, fallback: number, isFloat = false): number => {
+    if (s.trim() === "" || s.trim() === "-") return fallback;
+    const n = isFloat ? Number(s) : parseInt(s, 10);
+    return Number.isFinite(n) ? n : fallback;
+  };
+
+  const onNumChange =
+    <K extends keyof BirthData>(k: K, isFloat = false) =>
+    (e: ChangeEvent<HTMLInputElement>) =>
+      upd(k, parseNum(e.target.value, b[k] as number, isFloat) as BirthData[K]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +55,17 @@ export function BirthForm({ onSubmit }: { onSubmit: (b: BirthData) => void }) {
   const inputCls =
     "w-full bg-black/30 border border-white/10 rounded px-3 py-2 text-sm font-mono text-white/90 focus:outline-none focus:border-[#9d7bff]";
   const labelCls = "block text-[10px] uppercase tracking-widest text-white/40 mb-1 font-mono";
+
+  // Common props for numeric fields. type="text" + inputMode="numeric"
+  // gives the mobile number-pad while letting `.select()` actually work.
+  const numProps = {
+    type: "text" as const,
+    inputMode: "numeric" as const,
+    onFocus: selectAllOnFocus,
+    onClick: selectAllOnFocus,
+    className: inputCls,
+  };
+  const decProps = { ...numProps, inputMode: "decimal" as const };
 
   return (
     <form
@@ -40,91 +78,62 @@ export function BirthForm({ onSubmit }: { onSubmit: (b: BirthData) => void }) {
           <label className={labelCls}>Name</label>
           <input
             className={inputCls}
+            placeholder="Your name"
             value={b.name}
+            onFocus={selectAllOnFocus}
             onChange={(e) => upd("name", e.target.value)}
           />
         </div>
         <div>
           <label className={labelCls}>Year</label>
-          <input
-            type="number"
-            className={inputCls}
-            value={b.year}
-            onChange={(e) => upd("year", +e.target.value)}
-          />
+          <input {...numProps} placeholder="1990" value={b.year} onChange={onNumChange("year")} />
         </div>
         <div>
           <label className={labelCls}>Month</label>
-          <input
-            type="number"
-            min={1}
-            max={12}
-            className={inputCls}
-            value={b.month}
-            onChange={(e) => upd("month", +e.target.value)}
-          />
+          <input {...numProps} placeholder="1-12" value={b.month} onChange={onNumChange("month")} />
         </div>
         <div>
           <label className={labelCls}>Day</label>
-          <input
-            type="number"
-            min={1}
-            max={31}
-            className={inputCls}
-            value={b.day}
-            onChange={(e) => upd("day", +e.target.value)}
-          />
+          <input {...numProps} placeholder="1-31" value={b.day} onChange={onNumChange("day")} />
         </div>
         <div>
           <label className={labelCls}>Hour (local)</label>
-          <input
-            type="number"
-            min={0}
-            max={23}
-            className={inputCls}
-            value={b.hour}
-            onChange={(e) => upd("hour", +e.target.value)}
-          />
+          <input {...numProps} placeholder="0-23" value={b.hour} onChange={onNumChange("hour")} />
         </div>
         <div>
           <label className={labelCls}>Minute</label>
           <input
-            type="number"
-            min={0}
-            max={59}
-            className={inputCls}
+            {...numProps}
+            placeholder="0-59"
             value={b.minute}
-            onChange={(e) => upd("minute", +e.target.value)}
+            onChange={onNumChange("minute")}
           />
         </div>
         <div>
           <label className={labelCls}>UTC Offset</label>
           <input
-            type="number"
-            step="0.5"
-            className={inputCls}
+            {...decProps}
+            placeholder="-5"
             value={b.tzOffsetHours}
-            onChange={(e) => upd("tzOffsetHours", +e.target.value)}
+            onChange={onNumChange("tzOffsetHours", true)}
           />
         </div>
         <div>
           <label className={labelCls}>Latitude</label>
           <input
-            type="number"
-            step="0.0001"
-            className={inputCls}
+            {...decProps}
+            placeholder="40.7128"
             value={b.latitude}
-            onChange={(e) => upd("latitude", +e.target.value)}
+            onChange={onNumChange("latitude", true)}
           />
         </div>
         <div>
           <label className={labelCls}>Longitude</label>
           <input
-            type="number"
-            step="0.0001"
-            className={inputCls}
+            {...decProps}
+            placeholder="-74.006"
             value={b.longitude}
-            onChange={(e) => upd("longitude", +e.target.value)}
+            onChange={onNumChange("longitude", true)}
           />
         </div>
         <div>
