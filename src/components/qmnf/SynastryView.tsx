@@ -1,14 +1,20 @@
 import { useMemo, useState } from "react";
 import { computeFullChart, type BirthData, type FullChart } from "@/lib/qmnf/chart";
 import { computeSynastry } from "@/lib/qmnf/synastry";
+import { computeComposite, computeDavison } from "@/lib/qmnf/composite";
+import { formatPosition } from "@/lib/qmnf/format";
 import { BirthForm } from "./BirthForm";
 import { Rigorous } from "./Rigorous";
+
+const SIGNS = ["Ari", "Tau", "Gem", "Can", "Leo", "Vir", "Lib", "Sco", "Sag", "Cap", "Aqu", "Pis"];
 
 export function SynastryView({ chart }: { chart: FullChart }) {
   const [otherBirth, setOtherBirth] = useState<BirthData | null>(null);
 
   const other = useMemo(() => (otherBirth ? computeFullChart(otherBirth) : null), [otherBirth]);
   const report = useMemo(() => (other ? computeSynastry(chart, other) : null), [chart, other]);
+  const composite = useMemo(() => (other ? computeComposite(chart, other) : null), [chart, other]);
+  const davison = useMemo(() => (other ? computeDavison(chart, other) : null), [chart, other]);
 
   return (
     <div className="space-y-6">
@@ -109,6 +115,67 @@ export function SynastryView({ chart }: { chart: FullChart }) {
               (invisible).
             </div>
           </Rigorous>
+
+          {composite && davison && (
+            <div className="grid lg:grid-cols-2 gap-3">
+              <div className="rounded border p-4" style={{ borderColor: "#e3b4ff30" }}>
+                <h3 className="font-serif text-lg mb-2" style={{ color: "#e3b4ff" }}>
+                  Composite chart (midpoints)
+                </h3>
+                <div className="text-xs font-mono space-y-1">
+                  {composite.ephemeris.planets.slice(0, 10).map((p) => {
+                    const deg = Number(p.longitudeArcsec) / 3600;
+                    return (
+                      <div key={p.name} className="flex gap-3">
+                        <span className="text-white/55 w-20">{p.name}</span>
+                        <span className="text-white/85">
+                          {formatPosition(p.longitudeArcsec)} {SIGNS[Math.floor(deg / 30)]}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 text-[10px] text-white/40">
+                  {composite.aspects.length} aspects · {composite.shadowNetwork.length} shadow ·{" "}
+                  {composite.boundaryNetwork.length} boundary
+                </div>
+                <Rigorous>
+                  <div className="mt-2 text-[10px] font-mono text-violet-300/80">
+                    composite λ = ½(λ_A + λ_B) along the shorter arc. Pure integer midpoint on the
+                    1,296,000″ ring.
+                  </div>
+                </Rigorous>
+              </div>
+
+              <div className="rounded border p-4" style={{ borderColor: "#5dd6c430" }}>
+                <h3 className="font-serif text-lg mb-2" style={{ color: "#5dd6c4" }}>
+                  Davison relationship (mid-time)
+                </h3>
+                <div className="text-xs font-mono space-y-1">
+                  {davison.ephemeris.planets.slice(0, 10).map((p) => {
+                    const deg = Number(p.longitudeArcsec) / 3600;
+                    return (
+                      <div key={p.name} className="flex gap-3">
+                        <span className="text-white/55 w-20">{p.name}</span>
+                        <span className="text-white/85">
+                          {formatPosition(p.longitudeArcsec)} {SIGNS[Math.floor(deg / 30)]}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 text-[10px] text-white/40">
+                  Mid-JD: {davison.jd.toFixed(2)} · {davison.aspects.length} aspects
+                </div>
+                <Rigorous>
+                  <div className="mt-2 text-[10px] font-mono text-violet-300/80">
+                    Davison = actual ephemeris at (jd_A + jd_B) / 2. A live transit chart at the
+                    temporal midpoint.
+                  </div>
+                </Rigorous>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

@@ -50,7 +50,6 @@ export function computeComposite(a: FullChart, b: FullChart): CompositeChart {
   const aspects = buildAspects(planets);
   const shadowNetwork = buildShadowNetwork(planets, SHADOW_LANE_NAMES);
   const boundaryNetwork = buildBoundaryNetwork(planets, BOUNDARY_LANE_NAMES);
-  void computeEphemeris;
   return {
     ephemeris: { jd: (a.jd + b.jd) / 2, planets },
     aspects,

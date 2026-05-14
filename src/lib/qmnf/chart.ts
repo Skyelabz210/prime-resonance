@@ -34,6 +34,9 @@ import { findStarConjunctions, type StarConjunction } from "./fixedstars";
 import { findAntisciaContacts, type AntisciaContact } from "./antiscia";
 import { termAndFace, type TermFaceResult } from "./terms";
 import type { PlanetName } from "./dignities";
+import { profectionAt, type ProfectionState } from "./profections";
+import { zodiacalReleasingL1, type ZRPeriod } from "./zr";
+import { buildExtras, type SensitivePoint } from "./extras";
 
 export interface BirthData {
   name: string;
@@ -90,6 +93,15 @@ export interface FullChart {
   antisciaContacts: AntisciaContact[];
   /** Term and decan ruler for each classical planet — refines essential dignity. */
   termFace: TermFaceResult[];
+  /** Annual profection at age-0 (the Ascendant sign) — full timeline is
+   *  derived from `ascSignIndex`. */
+  ascSignIndex: number;
+  /** Zodiacal Releasing L1 timeline released from Lot of Spirit. */
+  zrFromSpirit: ZRPeriod[];
+  /** Zodiacal Releasing L1 timeline released from Lot of Fortune. */
+  zrFromFortune: ZRPeriod[];
+  /** True Node, Galactic Center, Vertex, Anti-Vertex. */
+  extras: SensitivePoint[];
 }
 
 function computeVedicLayer(jd: number, planets: PlanetPosition[]): VedicLayer {
@@ -167,7 +179,6 @@ export function computeFullChart(birth: BirthData): FullChart {
     isDay: dayChart,
   });
   const phase = lunarPhase(sunArcsec, moonArcsec);
-  const moonForVoc = ephemeris.planets.find((p) => p.name === "Moon");
   const voc = isMoonVoidOfCourse(
     moonArcsec,
     47400,
@@ -190,7 +201,6 @@ export function computeFullChart(birth: BirthData): FullChart {
                     : 120,
       })),
   );
-  void moonForVoc;
   const shape = classifyChartShape(
     ephemeris.planets.filter((p) =>
       [
@@ -221,6 +231,14 @@ export function computeFullChart(birth: BirthData): FullChart {
   const termFace: TermFaceResult[] = ephemeris.planets
     .filter((p) => TERM_PLANETS.includes(p.name as PlanetName))
     .map((p) => termAndFace(p.name as PlanetName, p.longitudeArcsec));
+
+  // Next-phase additions: profections / ZR / extras.
+  const ascSignIndex = Number(ascArcsec / 108_000n);
+  const spiritLot = lots.find((l) => l.name === "Part of Spirit")!;
+  const fortuneLot = lots.find((l) => l.name === "Part of Fortune")!;
+  const zrFromSpirit = zodiacalReleasingL1(Number(spiritLot.longitudeArcsec / 108_000n), 90);
+  const zrFromFortune = zodiacalReleasingL1(Number(fortuneLot.longitudeArcsec / 108_000n), 90);
+  const extras = buildExtras(jd, birth.latitude, birth.longitude);
   return {
     birth,
     jd,
@@ -249,8 +267,15 @@ export function computeFullChart(birth: BirthData): FullChart {
     fixedStarContacts,
     antisciaContacts,
     termFace,
+    ascSignIndex,
+    zrFromSpirit,
+    zrFromFortune,
+    extras,
   };
 }
+
+// Re-export utility helpers for UI panels:
+export { profectionAt, type ProfectionState };
 
 // Reading bundle — purely structural, no narrative. Sent to AI for verbalization.
 export interface ReadingBundle {
@@ -299,6 +324,21 @@ export interface ReadingBundle {
       inOwnTerm: boolean;
       faceRuler: string;
       inOwnFace: boolean;
+    }>;
+    /** Annual profection at age 0 — caller passes age via `profectionAge`. */
+    ascSignIndex: number;
+    extras: Array<{ name: string; position: string; r11: string; r13: string }>;
+    zrFromSpirit: Array<{
+      sign: string;
+      startAge: number;
+      endAge: number;
+      loosingOfTheBond: boolean;
+    }>;
+    zrFromFortune: Array<{
+      sign: string;
+      startAge: number;
+      endAge: number;
+      loosingOfTheBond: boolean;
     }>;
   };
   rigorous?: boolean;
@@ -439,6 +479,25 @@ export function buildReadingBundle(chart: FullChart, rigorous = false): ReadingB
         inOwnTerm: t.inOwnTerm,
         faceRuler: t.faceRuler,
         inOwnFace: t.inOwnFace,
+      })),
+      ascSignIndex: chart.ascSignIndex,
+      extras: chart.extras.map((e) => ({
+        name: e.name,
+        position: formatPosition(e.longitudeArcsec),
+        r11: e.address.r11.toString(),
+        r13: e.address.r13.toString(),
+      })),
+      zrFromSpirit: chart.zrFromSpirit.slice(0, 8).map((p) => ({
+        sign: p.signName,
+        startAge: p.startAge,
+        endAge: p.endAge,
+        loosingOfTheBond: p.loosingOfTheBond,
+      })),
+      zrFromFortune: chart.zrFromFortune.slice(0, 8).map((p) => ({
+        sign: p.signName,
+        startAge: p.startAge,
+        endAge: p.endAge,
+        loosingOfTheBond: p.loosingOfTheBond,
       })),
     },
     rigorous,

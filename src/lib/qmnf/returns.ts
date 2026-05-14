@@ -25,38 +25,50 @@ function angularDelta(a: number, b: number): number {
 }
 
 /** Locate the JD nearest `aroundJd` when `planet` is at `targetDeg`.
- *  Uses one quick bisection within ±half-cycle. */
+ *  Strategy: coarse scan in period/12 steps over [aroundJd - period, aroundJd + period],
+ *  pick the first sign-change bracket, then bisect to arcsec precision. */
 function solveReturn(planet: string, targetDeg: number, aroundJd: number): number {
   const period = SIDEREAL_DAYS[planet] ?? 365.25;
-  const half = period / 2;
-  let lo = aroundJd - half;
-  let hi = aroundJd + half;
   const lonAt = (jd: number) => {
     const e = computeEphemeris(jd);
     const p = e.planets.find((q) => q.name === planet);
     return p ? Number(p.longitudeArcsec) / 3600 : 0;
   };
   const fDelta = (jd: number) => angularDelta(lonAt(jd), targetDeg);
-  // bisect: find sign change
-  let fLo = fDelta(lo);
-  let fHi = fDelta(hi);
-  if (fLo * fHi > 0) {
-    // No crossing in this window: walk outwards by period
-    for (let k = 1; k <= 3; k++) {
-      lo = aroundJd + (k - 0.5) * period;
-      hi = aroundJd + (k + 0.5) * period;
-      fLo = fDelta(lo);
-      fHi = fDelta(hi);
-      if (fLo * fHi < 0) break;
+
+  // Coarse scan: 24 samples across two full periods centered on aroundJd.
+  const stride = period / 12;
+  const samples: { jd: number; f: number }[] = [];
+  for (let k = -12; k <= 12; k++) {
+    const jd = aroundJd + k * stride;
+    samples.push({ jd, f: fDelta(jd) });
+  }
+  // Pick the bracket whose midpoint is closest to aroundJd.
+  let best: { lo: number; hi: number; fLo: number; fHi: number; dist: number } | null = null;
+  for (let i = 0; i < samples.length - 1; i++) {
+    if (samples[i].f * samples[i + 1].f <= 0) {
+      const mid = (samples[i].jd + samples[i + 1].jd) / 2;
+      const dist = Math.abs(mid - aroundJd);
+      if (!best || dist < best.dist) {
+        best = {
+          lo: samples[i].jd,
+          hi: samples[i + 1].jd,
+          fLo: samples[i].f,
+          fHi: samples[i + 1].f,
+          dist,
+        };
+      }
     }
   }
-  for (let i = 0; i < 32; i++) {
+  if (!best) return aroundJd; // no crossing found in ±2 periods — give up
+  let { lo, hi, fLo } = best;
+  // Bisection
+  for (let i = 0; i < 40; i++) {
     const mid = (lo + hi) / 2;
     const fMid = fDelta(mid);
-    if (Math.abs(fMid) < 1e-4) return mid;
+    if (Math.abs(fMid) < 1e-5) return mid;
     if (fLo * fMid <= 0) {
       hi = mid;
-      fHi = fMid;
     } else {
       lo = mid;
       fLo = fMid;

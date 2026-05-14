@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import type { FullChart } from "@/lib/qmnf/chart";
 import { fullTimeline, type EventHit } from "@/lib/qmnf/events";
+import { findStations, type Station } from "@/lib/qmnf/stations";
+import { solarReturnJD } from "@/lib/qmnf/returns";
 import { Rigorous } from "./Rigorous";
 
 function jdToDateStr(jd: number): string {
@@ -33,7 +35,7 @@ const KIND_LABEL: Record<EventHit["kind"], string> = {
 
 export function TimelineView({ chart }: { chart: FullChart }) {
   const [years, setYears] = useState(60);
-  const [filter, setFilter] = useState<"all" | "shadow" | "returns" | "codex">("all");
+  const [filter, setFilter] = useState<"all" | "shadow" | "returns" | "codex" | "stations">("all");
 
   const events = useMemo(
     () =>
@@ -45,6 +47,25 @@ export function TimelineView({ chart }: { chart: FullChart }) {
       ),
     [chart, years],
   );
+
+  // Retrograde stations within the timeline window.
+  const stations = useMemo<Station[]>(() => {
+    if (filter !== "stations" && filter !== "all") return [];
+    return findStations(chart.jd, chart.jd + years * 365.25);
+  }, [chart, years, filter]);
+
+  // Solar return JDs (one per year, for ~10 years out).
+  const solarReturns = useMemo(() => {
+    const natalSun = chart.ephemeris.planets.find((p) => p.name === "Sun");
+    if (!natalSun) return [] as number[];
+    const natalDeg = Number(natalSun.longitudeArcsec) / 3600;
+    const out: number[] = [];
+    const maxYears = Math.min(years, 10);
+    for (let k = 1; k <= maxYears; k++) {
+      out.push(solarReturnJD(natalDeg, chart.jd + k * 365.25));
+    }
+    return out;
+  }, [chart, years]);
 
   const filtered = events
     .filter((e) => {
@@ -97,6 +118,7 @@ export function TimelineView({ chart }: { chart: FullChart }) {
             <option value="shadow">Shadow</option>
             <option value="returns">Returns</option>
             <option value="codex">Codex closures</option>
+            <option value="stations">Retrograde stations</option>
           </select>
         </div>
       </div>
@@ -125,10 +147,64 @@ export function TimelineView({ chart }: { chart: FullChart }) {
         {!filtered.length && <div className="p-3 text-xs text-white/40">No events.</div>}
       </div>
 
+      {(filter === "all" || filter === "stations") && stations.length > 0 && (
+        <div className="mt-3">
+          <h3 className="mb-1 text-[10px] uppercase tracking-widest font-mono text-white/45">
+            Retrograde stations ({stations.length})
+          </h3>
+          <div className="max-h-32 overflow-y-auto rounded bg-black/20 p-2">
+            {stations.slice(0, 40).map((s, i) => (
+              <div
+                key={i}
+                className="flex gap-3 px-2 py-0.5 text-xs font-mono border-b border-white/5"
+              >
+                <span className="w-24 text-white/50">{jdToDateStr(s.jd)}</span>
+                <span className="w-14 text-white/40">
+                  age {((s.jd - chart.jd) / 365.25).toFixed(1)}
+                </span>
+                <span
+                  className={s.kind === "retrograde" ? "text-rose-300" : "text-emerald-300"}
+                  style={{ width: "5.5rem" }}
+                >
+                  {s.kind === "retrograde" ? "Retrograde" : "Direct"}
+                </span>
+                <span className="text-white/85">{s.planet} stations</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {solarReturns.length > 0 && (
+        <div className="mt-3">
+          <h3 className="mb-1 text-[10px] uppercase tracking-widest font-mono text-white/45">
+            Solar Returns ({solarReturns.length})
+          </h3>
+          <div className="max-h-32 overflow-y-auto rounded bg-black/20 p-2">
+            {solarReturns.map((jd, i) => (
+              <div
+                key={i}
+                className="flex gap-3 px-2 py-0.5 text-xs font-mono border-b border-white/5"
+              >
+                <span className="w-24 text-white/50">{jdToDateStr(jd)}</span>
+                <span className="w-14 text-white/40">
+                  age {((jd - chart.jd) / 365.25).toFixed(1)}
+                </span>
+                <span className="text-amber-200" style={{ width: "5.5rem" }}>
+                  Solar Return
+                </span>
+                <span className="text-white/85">Sun returns to natal longitude</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <Rigorous>
         <div className="mt-3 text-[10px] font-mono">
-          Events solved by linear congruence over mean motion (Saturn 120″/day, Jupiter 299″/day,
-          ...). Every date is exact — no float sampling, no rounding.
+          Aspect events: linear congruence over mean motion. Stations: detected by sign-change of
+          v(jd+1) − v(jd) in 5-day steps. Solar return: bisection on angular delta to natal Sun,
+          root-finding to arcsec.
         </div>
       </Rigorous>
     </div>
