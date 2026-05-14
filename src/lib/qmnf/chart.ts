@@ -30,6 +30,10 @@ import { meanLilithArcsec, meanLilithDeg } from "./lilith";
 import { lunarPhase, isMoonVoidOfCourse, type LunarPhase } from "./phase";
 import { classifyChartShape, type ShapeResult } from "./shape";
 import { CrtAddress } from "./crt";
+import { findStarConjunctions, type StarConjunction } from "./fixedstars";
+import { findAntisciaContacts, type AntisciaContact } from "./antiscia";
+import { termAndFace, type TermFaceResult } from "./terms";
+import type { PlanetName } from "./dignities";
 
 export interface BirthData {
   name: string;
@@ -80,6 +84,12 @@ export interface FullChart {
   voidOfCourse: { voc: boolean; nextSignChangeDays: number; nextAspectDays: number | null };
   shape: ShapeResult;
   isDayChart: boolean;
+  /** Bright fixed stars within 1° of a natal planet. */
+  fixedStarContacts: StarConjunction[];
+  /** Pairs in mutual antiscia / contra-antiscia within 1°. */
+  antisciaContacts: AntisciaContact[];
+  /** Term and decan ruler for each classical planet — refines essential dignity. */
+  termFace: TermFaceResult[];
 }
 
 function computeVedicLayer(jd: number, planets: PlanetPosition[]): VedicLayer {
@@ -197,6 +207,20 @@ export function computeFullChart(birth: BirthData): FullChart {
       ].includes(p.name),
     ),
   );
+  const fixedStarContacts = findStarConjunctions(ephemeris.planets, jd);
+  const antisciaContacts = findAntisciaContacts(ephemeris.planets);
+  const TERM_PLANETS: PlanetName[] = [
+    "Sun",
+    "Moon",
+    "Mercury",
+    "Venus",
+    "Mars",
+    "Jupiter",
+    "Saturn",
+  ];
+  const termFace: TermFaceResult[] = ephemeris.planets
+    .filter((p) => TERM_PLANETS.includes(p.name as PlanetName))
+    .map((p) => termAndFace(p.name as PlanetName, p.longitudeArcsec));
   return {
     birth,
     jd,
@@ -222,6 +246,9 @@ export function computeFullChart(birth: BirthData): FullChart {
     voidOfCourse: voc,
     shape,
     isDayChart: dayChart,
+    fixedStarContacts,
+    antisciaContacts,
+    termFace,
   };
 }
 
@@ -264,6 +291,15 @@ export interface ReadingBundle {
     voidOfCourse: { voc: boolean; nextSignChangeDays: number };
     shape: { shape: string; largestGapDeg: number; handle?: string };
     sect: "day" | "night";
+    fixedStars: Array<{ planet: string; star: string; orbDeg: number; nature: string }>;
+    antiscia: Array<{ a: string; b: string; kind: string; orbDeg: number }>;
+    termFace: Array<{
+      planet: string;
+      termRuler: string;
+      inOwnTerm: boolean;
+      faceRuler: string;
+      inOwnFace: boolean;
+    }>;
   };
   rigorous?: boolean;
 }
@@ -385,6 +421,25 @@ export function buildReadingBundle(chart: FullChart, rigorous = false): ReadingB
         handle: chart.shape.handle,
       },
       sect: chart.isDayChart ? "day" : "night",
+      fixedStars: chart.fixedStarContacts.map((s) => ({
+        planet: s.planet,
+        star: s.star,
+        orbDeg: Number(s.orbArcsec) / 3600,
+        nature: s.nature,
+      })),
+      antiscia: chart.antisciaContacts.map((a) => ({
+        a: a.a,
+        b: a.b,
+        kind: a.kind,
+        orbDeg: Number(a.orbArcsec) / 3600,
+      })),
+      termFace: chart.termFace.map((t) => ({
+        planet: t.planet,
+        termRuler: t.termRuler,
+        inOwnTerm: t.inOwnTerm,
+        faceRuler: t.faceRuler,
+        inOwnFace: t.inOwnFace,
+      })),
     },
     rigorous,
   };

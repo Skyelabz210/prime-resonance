@@ -2,11 +2,9 @@
 // Identifies conventional aspects + shadow (mod 11) and boundary (mod 13)
 // bonds, including pairs the angular system makes invisible.
 
-import { CrtAddress, arcsecDiff, carryTuple } from "./crt";
+import { arcsecDiff, carryTuple } from "./crt";
 import { FULL_CIRCLE_ARCSEC } from "./constants";
 import type { PlanetPosition } from "./ephemeris";
-
-void CrtAddress; // imported for type re-export from index files
 
 export interface AspectDef {
   name: string;

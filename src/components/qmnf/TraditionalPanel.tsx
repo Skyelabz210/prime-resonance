@@ -234,6 +234,121 @@ export function TraditionalPanel({ chart }: { chart: FullChart }) {
           </div>
         </Rigorous>
       </div>
+
+      {/* Fixed-star contacts */}
+      {chart.fixedStarContacts.length > 0 && (
+        <div className={cardClass}>
+          <h3 className={labelClass}>Fixed-star contacts (within 1°)</h3>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-white/40 text-xs">
+                <th className="py-1 pr-3">Planet</th>
+                <th className="py-1 pr-3">Star</th>
+                <th className="py-1 pr-3 text-right">Orb</th>
+                <th className="py-1 pr-3">Nature</th>
+              </tr>
+            </thead>
+            <tbody>
+              {chart.fixedStarContacts.map((s, i) => (
+                <tr key={i} className="border-t border-white/5">
+                  <td className="py-1 pr-3 font-mono">{s.planet}</td>
+                  <td className="py-1 pr-3 text-amber-200">{s.star}</td>
+                  <td className="py-1 pr-3 text-right font-mono text-xs">
+                    {(Number(s.orbArcsec) / 3600).toFixed(2)}°
+                  </td>
+                  <td className="py-1 pr-3 text-xs text-white/65">{s.nature}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <Rigorous>
+            <div className="text-[10px] font-mono text-violet-300/80 pt-2 border-t border-white/5">
+              Fixed stars precess at 50.29″/yr — a slow-moving residue address. A conjunction places
+              the star's r₁₁ into the chart's shadow network like any planet.
+            </div>
+          </Rigorous>
+        </div>
+      )}
+
+      {/* Antiscia */}
+      {chart.antisciaContacts.length > 0 && (
+        <div className={cardClass}>
+          <h3 className={labelClass}>Antiscia (mirror points)</h3>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-white/40 text-xs">
+                <th className="py-1 pr-3">Pair</th>
+                <th className="py-1 pr-3">Kind</th>
+                <th className="py-1 pr-3 text-right">Orb</th>
+              </tr>
+            </thead>
+            <tbody>
+              {chart.antisciaContacts.map((c, i) => (
+                <tr key={i} className="border-t border-white/5">
+                  <td className="py-1 pr-3 font-mono">
+                    {c.a} — {c.b}
+                  </td>
+                  <td className="py-1 pr-3 text-xs">{c.kind}</td>
+                  <td className="py-1 pr-3 text-right font-mono text-xs">
+                    {(Number(c.orbArcsec) / 3600).toFixed(2)}°
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <Rigorous>
+            <div className="text-[10px] font-mono text-violet-300/80 pt-2 border-t border-white/5">
+              A(λ) = (270° − λ) mod 360°. Antiscia is a pure integer involution: a planet and its
+              antiscion sum to 270°, so their shadow residues sum mod 11. Mutual antiscia = lane-11
+              complementary pair.
+            </div>
+          </Rigorous>
+        </div>
+      )}
+
+      {/* Term / Face / Decan */}
+      <div className={cardClass}>
+        <h3 className={labelClass}>Terms & Faces (Egyptian + Triplicity Decans)</h3>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-white/40 text-xs">
+              <th className="py-1 pr-3">Planet</th>
+              <th className="py-1 pr-3">Term ruler</th>
+              <th className="py-1 pr-3">Face ruler</th>
+              <th className="py-1 pr-3 text-right">Bonus</th>
+            </tr>
+          </thead>
+          <tbody>
+            {chart.termFace.map((t) => {
+              const bonus = (t.inOwnTerm ? 2 : 0) + (t.inOwnFace ? 1 : 0);
+              return (
+                <tr key={t.planet} className="border-t border-white/5">
+                  <td className="py-1 pr-3 font-mono">{t.planet}</td>
+                  <td className={"py-1 pr-3 " + (t.inOwnTerm ? "text-emerald-300" : "")}>
+                    {t.termRuler}
+                    {t.inOwnTerm ? " ✓" : ""}
+                  </td>
+                  <td className={"py-1 pr-3 " + (t.inOwnFace ? "text-emerald-300" : "")}>
+                    {t.faceRuler}
+                    {t.inOwnFace ? " ✓" : ""}
+                  </td>
+                  <td className="py-1 pr-3 text-right font-mono">
+                    {bonus > 0 ? "+" + bonus : "—"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <Rigorous>
+          <div className="text-[10px] font-mono text-violet-300/80 pt-2 border-t border-white/5">
+            Egyptian terms (Ptolemaic): 5 unequal segments per sign assigned to{" "}
+            {`{Mercury, Venus, Mars, Jupiter, Saturn}`}. Triplicity decan: each 10° third of a sign
+            ruled by the next sign of the same element's classical lord. Domicile +5, exalt +4, term
+            +2, face +1 — the full Ptolemaic dignity table.
+          </div>
+        </Rigorous>
+      </div>
     </div>
   );
 }

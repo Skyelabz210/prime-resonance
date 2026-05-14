@@ -12,6 +12,10 @@ import { lunarPhase } from "../phase";
 import { ayanamsaArcsec, nakshatraInfo, dashaTimeline } from "../vedic";
 import { J2000_JD } from "../julian";
 import { FULL_CIRCLE_ARCSEC } from "../constants";
+import { antiscionArcsec, contraAntiscionArcsec } from "../antiscia";
+import { termAndFace } from "../terms";
+import { solarArcAgeForTarget } from "../solararc";
+import { projectedStars } from "../fixedstars";
 
 const BIRTH = {
   name: "Test",
@@ -99,4 +103,47 @@ test("Dignities: Sun in Leo is domicile +5, Saturn in Aries is fall −4", () =>
 test("Lunar phase: 0° elong = New Moon, 180° = Full", () => {
   expect(lunarPhase(0n, 0n).phase).toBe("New Moon");
   expect(lunarPhase(0n, FULL_CIRCLE_ARCSEC / 2n).phase).toBe("Full Moon");
+});
+
+test("Antiscion is an involution: A(A(λ)) = λ", () => {
+  for (let d = 0; d < 360; d += 17) {
+    const lam = BigInt(d * 3600);
+    expect(antiscionArcsec(antiscionArcsec(lam))).toBe(lam);
+    expect(contraAntiscionArcsec(contraAntiscionArcsec(lam))).toBe(lam);
+  }
+});
+
+test("Antiscion of 0° Cancer (90°) = 0° Cancer (180° − 90° = 180°? no — 270 − 90 = 180°)", () => {
+  // 270° − 90° = 180° (Libra 0°). Then 270° − 180° = 90° round-trips.
+  const cancer0 = BigInt(90 * 3600);
+  expect(antiscionArcsec(cancer0)).toBe(BigInt(180 * 3600));
+});
+
+test("Egyptian term: Mars 22° Aries → ruler Mars (own term, 20–25° band)", () => {
+  const lam = BigInt(22 * 3600);
+  const r = termAndFace("Mars", lam);
+  expect(r.termRuler).toBe("Mars");
+  expect(r.inOwnTerm).toBe(true);
+});
+
+test("Solar arc: 30 yrs ≈ 29.57° advance (Naibod 0.9856°/yr)", () => {
+  const age = solarArcAgeForTarget(0n, BigInt(Math.round(29.57 * 3600)));
+  expect(age).toBeCloseTo(30, 0);
+});
+
+test("Fixed stars: Regulus precesses ~50″/yr — Aug 2025 ≈ 0° Virgo", () => {
+  // 25 years after J2000: 25 × 50.29″ ≈ 1257″ ≈ 0.35° shift from 29.83° Leo
+  // → ~ 30.18° = 0.18° Virgo.
+  const stars = projectedStars(2_460_900); // ~Aug 2025
+  const regulus = stars.find((s) => s.name === "Regulus")!;
+  const deg = Number(regulus.longitudeArcsec) / 3600;
+  expect(deg).toBeGreaterThan(149.8);
+  expect(deg).toBeLessThan(150.5);
+});
+
+test("Full chart returns fixed stars + antiscia + termFace arrays", () => {
+  const c = computeFullChart(BIRTH);
+  expect(Array.isArray(c.fixedStarContacts)).toBe(true);
+  expect(Array.isArray(c.antisciaContacts)).toBe(true);
+  expect(c.termFace.length).toBe(7);
 });

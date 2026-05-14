@@ -15,13 +15,6 @@ export interface Lot {
   formula: string;
 }
 
-const ARCSEC_PER_DEG = 3600n;
-
-function arcsec(deg: number): bigint {
-  const a = BigInt(Math.round(deg * Number(ARCSEC_PER_DEG)));
-  return ((a % FULL_CIRCLE_ARCSEC) + FULL_CIRCLE_ARCSEC) % FULL_CIRCLE_ARCSEC;
-}
-
 function modPos(a: bigint): bigint {
   return ((a % FULL_CIRCLE_ARCSEC) + FULL_CIRCLE_ARCSEC) % FULL_CIRCLE_ARCSEC;
 }
@@ -71,7 +64,6 @@ export function computeLots(i: LotInputs): Lot[] {
   push("Part of Victory", i.ascArcsec + i.jupiterArcsec - spiritLon, "ASC + Jupiter − Spirit");
   // Nemesis: ASC + Fortune − Saturn
   push("Part of Nemesis", i.ascArcsec + fortLon - i.saturnArcsec, "ASC + Fortune − Saturn");
-  void arcsec; // helper kept for ad-hoc callers
   return out;
 }
 

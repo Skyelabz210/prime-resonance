@@ -35,8 +35,13 @@ function ascendantDeg(jd: number, latDeg: number, lonDeg: number): number {
   const phi = latDeg * DEG;
   const y = -Math.cos(ramc);
   const x = Math.sin(ramc) * Math.cos(eps) + Math.tan(phi) * Math.sin(eps);
-  const asc = Math.atan2(y, x) / DEG;
-  return norm360(asc);
+  let asc = norm360(Math.atan2(y, x) / DEG);
+  // Quadrant correction: ASC must lie east of MC, i.e. (asc − mc) mod 360°
+  // ∈ (0°, 180°). If not, the atan2 picked the western branch — flip by 180°.
+  const mc = mcDeg(jd, lonDeg);
+  const offset = (asc - mc + 360) % 360;
+  if (offset < 0 || offset >= 180) asc = norm360(asc + 180);
+  return asc;
 }
 
 function mcDeg(jd: number, lonDeg: number): number {

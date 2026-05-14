@@ -4,13 +4,7 @@
 // Source: transit_engine.py
 
 import { computeEphemeris, type PlanetPosition } from "./ephemeris";
-import {
-  classifyPair,
-  type ClassifiedAspect,
-  buildShadowNetwork,
-  buildBoundaryNetwork,
-  type ResidueBond,
-} from "./aspects";
+import { classifyPair, type ClassifiedAspect, type ResidueBond } from "./aspects";
 import { SHADOW_LANE_NAMES, BOUNDARY_LANE_NAMES } from "./constants";
 import type { FullChart } from "./chart";
 
@@ -109,6 +103,3 @@ export function scanShadowWindow(
   }
   return out;
 }
-
-void buildShadowNetwork;
-void buildBoundaryNetwork;

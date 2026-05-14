@@ -43,11 +43,6 @@ function rename(p: PlanetPosition, prefix: string): PlanetPosition {
   return { ...p, name: `${prefix}.${p.name}` };
 }
 
-function nameAfterPrefix(s: string): string {
-  const i = s.indexOf(".");
-  return i < 0 ? s : s.slice(i + 1);
-}
-
 function isClassical(a: ClassifiedAspect): boolean {
   return a.aspect.family === "cardinal" || a.aspect.family === "classical";
 }
@@ -97,7 +92,5 @@ export function computeSynastry(a: FullChart, b: FullChart, topN = 10): Synastry
   );
   const invisibleLocks = pairs.filter((p) => p.classicallyInvisible);
   const topPairs = [...pairs].sort((x, y) => y.lockScore - x.lockScore).slice(0, topN);
-
-  void nameAfterPrefix;
   return { pairs, shadowBonds, boundaryBonds, faceOfZero, invisibleLocks, topPairs };
 }
