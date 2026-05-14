@@ -84,7 +84,7 @@ export function buildNarrationFor(kind: NarrationKind, args: NarrationArgs): Nar
         mathRefs: ["intermediateValues.applying"],
       },
     ];
-    return { ...timedSegments(parts) };
+    { const r = timedSegments(parts); return { text: r.fullText, segments: r.segments }; }
   }
 
   if (kind === "house") {
@@ -113,7 +113,7 @@ export function buildNarrationFor(kind: NarrationKind, args: NarrationArgs): Nar
         mathRefs: ["inputs.houseSystem"],
       },
     ];
-    return { ...timedSegments(parts) };
+    { const r = timedSegments(parts); return { text: r.fullText, segments: r.segments }; }
   }
 
   if (kind === "shadow") {
@@ -141,7 +141,7 @@ export function buildNarrationFor(kind: NarrationKind, args: NarrationArgs): Nar
       },
     ];
     void b;
-    return { ...timedSegments(parts) };
+    { const r = timedSegments(parts); return { text: r.fullText, segments: r.segments }; }
   }
 
   // faceofzero
@@ -165,5 +165,5 @@ export function buildNarrationFor(kind: NarrationKind, args: NarrationArgs): Nar
   ];
   void a;
   void b;
-  return { ...timedSegments(parts) };
+  { const r = timedSegments(parts); return { text: r.fullText, segments: r.segments }; }
 }
