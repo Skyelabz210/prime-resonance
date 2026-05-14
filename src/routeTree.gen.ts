@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as VedicRouteImport } from './routes/vedic'
 import { Route as TransitsRouteImport } from './routes/transits'
 import { Route as TimelineRouteImport } from './routes/timeline'
+import { Route as TheatreRouteImport } from './routes/theatre'
 import { Route as SynastryRouteImport } from './routes/synastry'
 import { Route as ProgressedRouteImport } from './routes/progressed'
 import { Route as NatalRouteImport } from './routes/natal'
@@ -36,6 +37,11 @@ const TransitsRoute = TransitsRouteImport.update({
 const TimelineRoute = TimelineRouteImport.update({
   id: '/timeline',
   path: '/timeline',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TheatreRoute = TheatreRouteImport.update({
+  id: '/theatre',
+  path: '/theatre',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SynastryRoute = SynastryRouteImport.update({
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/natal': typeof NatalRoute
   '/progressed': typeof ProgressedRoute
   '/synastry': typeof SynastryRoute
+  '/theatre': typeof TheatreRoute
   '/timeline': typeof TimelineRoute
   '/transits': typeof TransitsRoute
   '/vedic': typeof VedicRoute
@@ -111,6 +118,7 @@ export interface FileRoutesByTo {
   '/natal': typeof NatalRoute
   '/progressed': typeof ProgressedRoute
   '/synastry': typeof SynastryRoute
+  '/theatre': typeof TheatreRoute
   '/timeline': typeof TimelineRoute
   '/transits': typeof TransitsRoute
   '/vedic': typeof VedicRoute
@@ -127,6 +135,7 @@ export interface FileRoutesById {
   '/natal': typeof NatalRoute
   '/progressed': typeof ProgressedRoute
   '/synastry': typeof SynastryRoute
+  '/theatre': typeof TheatreRoute
   '/timeline': typeof TimelineRoute
   '/transits': typeof TransitsRoute
   '/vedic': typeof VedicRoute
@@ -144,6 +153,7 @@ export interface FileRouteTypes {
     | '/natal'
     | '/progressed'
     | '/synastry'
+    | '/theatre'
     | '/timeline'
     | '/transits'
     | '/vedic'
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/natal'
     | '/progressed'
     | '/synastry'
+    | '/theatre'
     | '/timeline'
     | '/transits'
     | '/vedic'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/natal'
     | '/progressed'
     | '/synastry'
+    | '/theatre'
     | '/timeline'
     | '/transits'
     | '/vedic'
@@ -190,6 +202,7 @@ export interface RootRouteChildren {
   NatalRoute: typeof NatalRoute
   ProgressedRoute: typeof ProgressedRoute
   SynastryRoute: typeof SynastryRoute
+  TheatreRoute: typeof TheatreRoute
   TimelineRoute: typeof TimelineRoute
   TransitsRoute: typeof TransitsRoute
   VedicRoute: typeof VedicRoute
@@ -217,6 +230,13 @@ declare module '@tanstack/react-router' {
       path: '/timeline'
       fullPath: '/timeline'
       preLoaderRoute: typeof TimelineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/theatre': {
+      id: '/theatre'
+      path: '/theatre'
+      fullPath: '/theatre'
+      preLoaderRoute: typeof TheatreRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/synastry': {
@@ -313,6 +333,7 @@ const rootRouteChildren: RootRouteChildren = {
   NatalRoute: NatalRoute,
   ProgressedRoute: ProgressedRoute,
   SynastryRoute: SynastryRoute,
+  TheatreRoute: TheatreRoute,
   TimelineRoute: TimelineRoute,
   TransitsRoute: TransitsRoute,
   VedicRoute: VedicRoute,
@@ -321,13 +342,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
