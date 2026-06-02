@@ -26,10 +26,8 @@ const ASPECT_COLOR: Record<string, string> = {
 };
 
 export function ChartWheel({ chart }: { chart: FullChart }) {
-  const ascDeg = chart.houses.ascDeg;
-
-  // We rotate so that ascendant sits at the left (180°).
   // Working in tropical degrees directly, no rotation — easier visualization.
+  // 0° Aries sits at 9 o'clock; angle markers label the four chart angles.
   return (
     <div className="rounded-lg border border-white/10 bg-black/30 p-4 backdrop-blur">
       <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="w-full h-auto">
@@ -129,48 +127,87 @@ export function ChartWheel({ chart }: { chart: FullChart }) {
           );
         })}
 
-        {/* Planets */}
-        {chart.ephemeris.planets.map((p, i) => {
-          const deg = Number(p.longitudeArcsec) / 3600;
-          const pos = angleToXY(deg, R_PLANET);
-          return (
-            <g key={p.name}>
-              <circle cx={pos.x} cy={pos.y} r={11} fill="#0a0e1a" stroke="#9d7bff" />
-              <text
-                x={pos.x}
-                y={pos.y + 1}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fill="#e6e8ff"
-                fontSize="13"
-              >
-                {PLANET_GLYPHS[p.name] || p.name[0]}
-              </text>
-              {p.retrograde && (
-                <text x={pos.x + 12} y={pos.y - 8} fontSize="8" fill="#ff7bd6">
-                  ℞
-                </text>
-              )}
-            </g>
-          );
-        })}
-
-        {/* Asc marker */}
+        {/* Planets — spread glyphs that fall within 6° of each other onto
+            slightly different radii so they don't overlap. */}
         {(() => {
-          const p = angleToXY(ascDeg, R_OUTER + 8);
+          const bodies = chart.ephemeris.planets
+            .map((p) => ({ p, deg: Number(p.longitudeArcsec) / 3600 }))
+            .sort((a, b) => a.deg - b.deg);
+          // Assign a radius tier to each body; bump the tier when the previous
+          // glyph is within MIN_SEP degrees.
+          const MIN_SEP = 6;
+          const tiers: number[] = [];
+          let lastDeg = -999;
+          let tier = 0;
+          for (const body of bodies) {
+            if (body.deg - lastDeg < MIN_SEP) tier = (tier + 1) % 3;
+            else tier = 0;
+            tiers.push(tier);
+            lastDeg = body.deg;
+          }
+          return bodies.map(({ p, deg }, i) => {
+            const r = R_PLANET - tiers[i] * 24;
+            const pos = angleToXY(deg, r);
+            const tick1 = angleToXY(deg, R_HOUSE);
+            const tick2 = angleToXY(deg, r + 11);
+            return (
+              <g key={p.name}>
+                {/* tick from house ring to glyph so position stays legible */}
+                <line
+                  x1={tick1.x}
+                  y1={tick1.y}
+                  x2={tick2.x}
+                  y2={tick2.y}
+                  stroke="#ffffff20"
+                  strokeWidth={0.5}
+                />
+                <circle cx={pos.x} cy={pos.y} r={11} fill="#0a0e1a" stroke="#9d7bff" />
+                <text
+                  x={pos.x}
+                  y={pos.y + 1}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fill="#e6e8ff"
+                  fontSize="13"
+                >
+                  {PLANET_GLYPHS[p.name] || p.name[0]}
+                </text>
+                {p.retrograde && (
+                  <text x={pos.x + 12} y={pos.y - 8} fontSize="8" fill="#ff7bd6">
+                    ℞
+                  </text>
+                )}
+              </g>
+            );
+          });
+        })()}
+
+        {/* Angle labels — ASC / IC / DSC / MC at the four cardinal cusps. */}
+        {(
+          [
+            [0, "ASC"],
+            [3, "IC"],
+            [6, "DSC"],
+            [9, "MC"],
+          ] as const
+        ).map(([cuspIdx, label]) => {
+          const deg = Number(chart.houses.cuspsArcsec[cuspIdx]) / 3600;
+          const p = angleToXY(deg, R_OUTER + 12);
           return (
             <text
+              key={label}
               x={p.x}
               y={p.y}
               fontSize="10"
               fill="#9d7bff"
               textAnchor="middle"
+              dominantBaseline="middle"
               fontFamily="monospace"
             >
-              ASC
+              {label}
             </text>
           );
-        })()}
+        })}
       </svg>
       <div className="mt-3 flex flex-wrap gap-3 text-[10px] font-mono uppercase tracking-widest text-white/50">
         <span>

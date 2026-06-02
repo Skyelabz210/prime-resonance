@@ -74,6 +74,11 @@ export const PLANET_GLYPHS: Record<string, string> = {
   Pluto: "♇",
   NorthNode: "☊",
   Chiron: "⚷",
+  Lilith: "⚸",
+  Ceres: "⚳",
+  Pallas: "⚴",
+  Juno: "⚵",
+  Vesta: "⚶",
 };
 
 export const PLANET_ORDER = [

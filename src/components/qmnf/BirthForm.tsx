@@ -1,5 +1,6 @@
 import { useState, type ChangeEvent, type FocusEvent } from "react";
 import type { BirthData } from "@/lib/qmnf/chart";
+import { searchCities, type City } from "@/lib/qmnf/cities";
 
 const DEFAULT: BirthData = {
   name: "Sample Native",
@@ -30,9 +31,25 @@ function selectAllOnFocus(e: FocusEvent<HTMLInputElement>) {
 
 export function BirthForm({ onSubmit }: { onSubmit: (b: BirthData) => void }) {
   const [b, setB] = useState<BirthData>(DEFAULT);
+  const [cityQuery, setCityQuery] = useState("");
+  const [cityResults, setCityResults] = useState<City[]>([]);
+  const [cityLabel, setCityLabel] = useState("");
 
   const upd = <K extends keyof BirthData>(k: K, v: BirthData[K]) =>
     setB((prev) => ({ ...prev, [k]: v }));
+
+  const onCityQuery = (e: ChangeEvent<HTMLInputElement>) => {
+    const q = e.target.value;
+    setCityQuery(q);
+    setCityResults(searchCities(q));
+  };
+
+  const pickCity = (c: City) => {
+    setB((prev) => ({ ...prev, latitude: c.lat, longitude: c.lon, tzOffsetHours: c.tz }));
+    setCityLabel(`${c.name}, ${c.country}`);
+    setCityQuery("");
+    setCityResults([]);
+  };
 
   // Parse a numeric input string; if empty, keep the previous value so
   // mid-edit clears don't crash the chart computation.
@@ -83,6 +100,44 @@ export function BirthForm({ onSubmit }: { onSubmit: (b: BirthData) => void }) {
             onFocus={selectAllOnFocus}
             onChange={(e) => upd("name", e.target.value)}
           />
+        </div>
+        <div className="sm:col-span-2 relative">
+          <label className={labelCls}>
+            Birthplace {cityLabel && <span className="text-[#9d7bff]">· {cityLabel}</span>}
+          </label>
+          <input
+            className={inputCls}
+            placeholder="Search a city — fills lat / lon / UTC"
+            value={cityQuery}
+            onFocus={selectAllOnFocus}
+            onChange={onCityQuery}
+            autoComplete="off"
+          />
+          {cityResults.length > 0 && (
+            <ul
+              className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto rounded border bg-[#0a0e1a] shadow-xl"
+              style={{ borderColor: "#9d7bff55" }}
+            >
+              {cityResults.map((c) => (
+                <li key={`${c.name}-${c.country}`}>
+                  <button
+                    type="button"
+                    onClick={() => pickCity(c)}
+                    className="flex w-full items-center justify-between px-3 py-2 text-left text-xs font-mono text-white/85 hover:bg-[#9d7bff22]"
+                  >
+                    <span>
+                      {c.name}, <span className="text-white/50">{c.country}</span>
+                    </span>
+                    <span className="text-white/40">
+                      {c.lat.toFixed(2)}, {c.lon.toFixed(2)} · UTC
+                      {c.tz >= 0 ? "+" : ""}
+                      {c.tz}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         <div>
           <label className={labelCls}>Year</label>

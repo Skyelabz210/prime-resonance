@@ -467,3 +467,36 @@ test("declinationsForPlanets: 10 classical bodies covered", () => {
   const decls = declinationsForPlanets(c.ephemeris.planets.slice(0, 10), c.jd);
   expect(decls.length).toBe(10);
 });
+
+// ── City gazetteer ─────────────────────────────────────────────────────
+
+import { searchCities, CITIES } from "../cities";
+
+test("City search: 'new y' finds New York with its coordinates", () => {
+  const r = searchCities("new y");
+  expect(r.length).toBeGreaterThan(0);
+  expect(r[0].name).toBe("New York");
+  expect(r[0].lat).toBeCloseTo(40.71, 1);
+  expect(r[0].tz).toBe(-5);
+});
+
+test("City search: prefix matches rank before substring matches", () => {
+  const r = searchCities("san");
+  // "San ..." prefixes should appear before any substring hit
+  expect(r[0].name.toLowerCase().startsWith("san")).toBe(true);
+});
+
+test("City search: empty query returns nothing", () => {
+  expect(searchCities("")).toEqual([]);
+});
+
+test("City gazetteer: every entry has valid coordinates + tz", () => {
+  for (const c of CITIES) {
+    expect(c.lat).toBeGreaterThanOrEqual(-90);
+    expect(c.lat).toBeLessThanOrEqual(90);
+    expect(c.lon).toBeGreaterThanOrEqual(-180);
+    expect(c.lon).toBeLessThanOrEqual(180);
+    expect(c.tz).toBeGreaterThanOrEqual(-12);
+    expect(c.tz).toBeLessThanOrEqual(14);
+  }
+});
